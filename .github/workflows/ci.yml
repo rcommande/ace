@@ -19,11 +19,8 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
-      - name: Run a one-line script
-        run: echo Hello, world!
-
       - name: Build container
         run: docker build . -t esy
 
       - name: Run tests
-        run: docker run --it --rm esy x RunTests.exe
+        run: docker run -t --rm esy esy x RunTests

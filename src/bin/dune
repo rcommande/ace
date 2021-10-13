@@ -1,0 +1,4 @@
+(executable
+ (name Cli)
+ (public_name ace)
+ (libraries base lwt cmdliner lambda-term ace))

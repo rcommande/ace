@@ -1,16 +1,20 @@
 {
-	"name": "ace",
-	"version": "0.1.0",
-	"licence": "MIT",
-	"esy": {
-		"build": "dune build -p #{self.name}"
-	},
-	"dependencies": {
-		"ocaml": "~4.10.0",
-		"@opam/dune": "*",
-		"@esy-ocaml/reason": ">= 3.6.0 < 4.0.0"
-	},
-	"devDependencies": {
-		"@opam/ocaml-lsp-server": "*"
-	}
+  "name": "ace",
+  "version": "0.1.0",
+  "licence": "MIT",
+  "esy": { "build": "refmterr dune build -p #{self.name}" },
+  "dependencies": {
+    "@esy-ocaml/reason": ">= 3.6.0 < 4.0.0",
+    "@opam/base": "v0.14.1",
+    "@opam/cmdliner": "1.0.4",
+    "@opam/dune": "*",
+    "@opam/lambda-term": "3.1.0",
+    "@opam/lwt": "5.4.2",
+    "@opam/re2": "v0.14.0",
+    "@reason-native/console": "*",
+    "@reason-native/pastel": "*",
+    "@reason-native/rely": "*",
+    "ocaml": "~4.10.0"
+  },
+  "devDependencies": { "@opam/ocaml-lsp-server": "*", "refmterr": "^3.3.2" }
 }
