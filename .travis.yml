@@ -9,3 +9,4 @@ install:
 script:
   - esy b
   - esy x RunTests.exe
+  - echo "ok"
