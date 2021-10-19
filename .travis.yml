@@ -1,0 +1,12 @@
+language: node_js
+
+before_install:
+  - npm install -g esy
+
+install:
+  - esy i
+
+script:
+  - esy b
+  - esy x RunTests.exe
+  - echo "ok"
