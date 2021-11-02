@@ -26,4 +26,4 @@ jobs:
         run: docker build . -t esy
 
       - name: Run tests
-        run: docker run --it --rm esy x RunTests.exe
+        run: docker run -it --rm esy x RunTests.exe
