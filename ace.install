@@ -1,8 +1,0 @@
-lib: [
-  "/home/romain/Projects/ace/_esy/default/store/b/ace-51a6ff30/install/default/lib/ace/META"
-  "/home/romain/Projects/ace/_esy/default/store/b/ace-51a6ff30/install/default/lib/ace/dune-package"
-  "/home/romain/Projects/ace/_esy/default/store/b/ace-51a6ff30/install/default/lib/ace/opam"
-]
-bin: [
-  "/home/romain/Projects/ace/_esy/default/store/b/ace-51a6ff30/install/default/bin/ace"
-]

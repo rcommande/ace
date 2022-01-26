@@ -1,0 +1,15 @@
+(library
+   (name Ace_Tests)
+   (public_name ace.tests)
+   (ocamlopt_flags -linkall -g)
+   (libraries rely.lib ace base)
+   (modules (:standard \ RunTests))
+)
+
+(executable
+  (package ace)
+  (name RunTests)
+  (public_name RunTests)
+  (libraries ace.tests)
+  (modules RunTests)
+)
