@@ -3,26 +3,41 @@ open Lwt;
 open Base;
 open Stdio;
 open Ace;
-
+open Processor;
 
 let actions =
-  Processor.Action.[
+  Action.[
     {
       name: "Ping response",
-      from: Processor.Origin.Shell,
-      on: Processor.Action.Event.Command("!ping", None),
-      runner: Processor.Action.Runner.DirectResponse,
+      from: Origin.Shell,
+      on: Action.Event.Command("!ping", None),
+      runner: Action.Runner.DirectResponse,
+    },
+    {
+      name: "test http response",
+      from: Origin.Shell,
+      on: Action.Event.Command("!hello", None),
+      runner:
+        Action.Runner.HttpResponse(
+          "http://localhost:5000/",
+          Cohttp.Code.method_of_string("GET"),
+          [HTTPResponse.S2xx],
+          [("toto", "titi"), ("bidule", "machin")],
+          Cohttp.Header.of_list([
+            ("Content-type", "text/plain"),
+            ("machine", "trucmuche"),
+          ]),
+        ),
     },
   ];
 
 let default =
-  Processor.Action.{
+  Action.{
     name: "Unknown",
     from: Processor.Origin.Shell,
     on: Processor.Action.Event.Unknown,
     runner: Processor.Action.Runner.DirectResponse,
   };
-
 
 let handle_result = (input, action, response) => {
   let output =
@@ -87,10 +102,30 @@ module Prompt = {
 
   let string = text => [LTerm_text.S(text)];
 
-  let style = (~foreground=?, ~background=?, ~bold=false, ~underline=false, ~blink=false, ~reverse=false, ~children=[], ()) => { let c = List.fold( children, ~f=(acc, child) => List.append(acc, child),
+  let style =
+      (
+        ~foreground=?,
+        ~background=?,
+        ~bold=false,
+        ~underline=false,
+        ~blink=false,
+        ~reverse=false,
+        ~children=[],
+        (),
+      ) => {
+    let c =
+      List.fold(
+        children,
+        ~f=(acc, child) => List.append(acc, child),
         ~init=[],
       );
-    c |> fg(foreground) |> bg(background) |> b(Some(bold))  |>  u(Some(underline)) |> bk(Some(blink)) |> r(Some(reverse));
+    c
+    |> fg(foreground)
+    |> bg(background)
+    |> b(Some(bold))
+    |> u(Some(underline))
+    |> bk(Some(blink))
+    |> r(Some(reverse));
   };
 
   let text = (~children=[], ()) => {
@@ -101,14 +136,15 @@ module Prompt = {
 let make_prompt = line_number => {
   let formated_line_number = line_number |> Int.to_string;
   let markup =
-    Prompt.(<style foreground=LTerm_style.green>
-      <text> "In [" </text>
-      <style foreground=LTerm_style.lgreen bold=true>
-        <text> formated_line_number </text>
+    Prompt.(
+      <style foreground=LTerm_style.green>
+        <text> "In [" </text>
+        <style foreground=LTerm_style.lgreen bold=true>
+          <text> formated_line_number </text>
+        </style>
+        <text> "]: " </text>
       </style>
-      <text> "]: " </text>
-    </style>
-  );
+    );
   markup |> LTerm_text.eval;
 };
 
@@ -133,10 +169,7 @@ class read_line (~term, ~history, ~exit_code, ~binaries, ~line_number) = {
     let prefix = Zed_rope.to_string(this#input_prev);
     let binaries =
       List.filter(binaries, ~f=binary => {
-        Zed_string.starts_with(
-          binary,
-          ~prefix,
-        )
+        Zed_string.starts_with(binary, ~prefix)
       });
 
     this#set_completion(
@@ -157,7 +190,7 @@ let get_binaries = command_list =>
   List.map(command_list, ~f=command => Zed_string.unsafe_of_utf8(command));
 
 let rec loop = (~term, ~history, ~exit_code, ~line_number=1, ()) => {
-  let binaries = get_binaries(["!ping", "quit", "exit", "clear"]);
+  let binaries = get_binaries(["!ping", "!hello", "quit", "exit", "clear"]);
   let read_line_engine =
     (new read_line)(
       ~term,

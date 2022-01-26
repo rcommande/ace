@@ -9,12 +9,12 @@ module Origin = {
 
   let to_string = origin => {
     switch (origin) {
-      | All => "all"
-      | Slack => "slack"
-      | Event => "event"
-      | Shell => "shell"
-    }
-  }
+    | All => "all"
+    | Slack => "slack"
+    | Event => "event"
+    | Shell => "shell"
+    };
+  };
 };
 
 module Action = {
@@ -32,12 +32,22 @@ module Action = {
   };
 
   module Runner = {
+    type url = string;
+
     type t =
+      | HttpResponse(
+          url,
+          Cohttp.Code.meth,
+          list(HTTPResponse.status_code),
+          HTTPResponse.Params.t,
+          HTTPResponse.Headers.t,
+        )
       | DirectResponse;
 
     let to_string = runner => {
       switch (runner) {
       | DirectResponse => "DirectResponse"
+      | HttpResponse(_) => "HttpResponse"
       };
     };
   };
@@ -98,11 +108,16 @@ let get_direct_response_executor = (command, args) => {
 };
 
 let execute = (action: Action.t) => {
-  switch (action.runner) {
-  | DirectResponse =>
-    switch (action.on) {
-    | Command(command, args) => get_direct_response_executor(command, args)
-    | Unknown => DirectResponse.execute_unknown()
+  Lwt.(
+    switch (action.runner) {
+    | DirectResponse =>
+      switch (action.on) {
+      | Command(command, args) => get_direct_response_executor(command, args)
+      | Unknown => DirectResponse.execute_unknown()
+      }
+    | HttpResponse(url, method, allowed, params, headers) =>
+      HTTPResponse.execute_http_request(url, method, allowed, params, headers)
+      >>= (body => Lwt_result.return(Response.Text(body)))
     }
-  };
+  );
 };

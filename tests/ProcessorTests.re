@@ -4,13 +4,12 @@ open Ace;
 open Base;
 open TestFramework;
 
-let ping_action = 
-  {
-    name: "Ping action",
-    from: Origin.All,
-    on: Event.Command("!ping", None),
-    runner: Runner.DirectResponse,
-  };
+let ping_action = {
+  name: "Ping action",
+  from: Origin.All,
+  on: Event.Command("!ping", None),
+  runner: Runner.DirectResponse,
+};
 
 let actions = [
   ping_action,
