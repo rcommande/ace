@@ -2,3 +2,4 @@ _esy
 node_modules
 ace.install
 _build
+__pycache__

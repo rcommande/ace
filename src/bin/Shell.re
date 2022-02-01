@@ -39,6 +39,8 @@ let default =
     runner: Processor.Action.Runner.DirectResponse,
   };
 
+let shell_commands = ["exit", "quit", "clear"];
+
 let handle_result = (input, action, response) => {
   let output =
     Widgets.make(input, action, response)
@@ -186,11 +188,35 @@ class read_line (~term, ~history, ~exit_code, ~binaries, ~line_number) = {
   );
 };
 
-let get_binaries = command_list =>
-  List.map(command_list, ~f=command => Zed_string.unsafe_of_utf8(command));
+let get_binaries = (actions: list(Action.t), shell_commands) => {
+  let commands =
+    List.filter(actions, ~f=action => {
+      switch (action.on) {
+      | Action.Event.Command(_, _) => true
+      | _ => false
+      }
+    });
+  let command_list =
+    List.map(
+      commands,
+      ~f=action => {
+        let command_name =
+          switch (action.on) {
+          | Action.Event.Command(name, _) => name
+          | _ => ""
+          };
+        Zed_string.unsafe_of_utf8(command_name);
+      },
+    );
+  List.concat([
+    command_list,
+    List.map(shell_commands, ~f=shell_command =>
+      Zed_string.unsafe_of_utf8(shell_command)
+    ),
+  ]);
+};
 
-let rec loop = (~term, ~history, ~exit_code, ~line_number=1, ()) => {
-  let binaries = get_binaries(["!ping", "!hello", "quit", "exit", "clear"]);
+let rec loop = (~binaries, ~term, ~history, ~exit_code, ~line_number=1, ()) => {
   let read_line_engine =
     (new read_line)(
       ~term,
@@ -220,6 +246,7 @@ let rec loop = (~term, ~history, ~exit_code, ~line_number=1, ()) => {
         >>= (
           _ =>
             loop(
+              ~binaries,
               ~term,
               ~history,
               ~exit_code,
@@ -233,13 +260,20 @@ let rec loop = (~term, ~history, ~exit_code, ~line_number=1, ()) => {
 };
 
 let run_shell = () => {
+  let binaries = get_binaries(actions, shell_commands);
   LTerm_inputrc.load()
   >>= (
     () =>
       Lazy.force(LTerm.stdout)
       >>= (
         term =>
-          loop(~term, ~history=LTerm_history.create([]), ~exit_code=0, ())
+          loop(
+            ~binaries,
+            ~term,
+            ~history=LTerm_history.create([]),
+            ~exit_code=0,
+            (),
+          )
       )
   );
 };
