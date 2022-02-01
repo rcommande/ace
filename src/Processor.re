@@ -1,123 +1,96 @@
 open Base;
+open Re2;
+open Core.Types;
+open Lwt;
 
-module Origin = {
-  type t =
-    | All
-    | Slack
-    | Event
-    | Shell;
+let command_regex = Re2.create_exn("^\\!(?P<command>\\w+)\\ *(?P<args>.*)$");
 
-  let to_string = origin => {
-    switch (origin) {
-    | All => "all"
-    | Slack => "slack"
-    | Event => "event"
-    | Shell => "shell"
-    };
+let filter_empty_string = string_list =>
+  List.filter(string_list, item => Poly.(item != ""));
+
+type error =
+  | InvalidCommand(string, string);
+
+let parse_command = input => {
+  switch (find_submatches_exn(command_regex, input)) {
+  | subs =>
+    let command = Option.value(subs[1], ~default="");
+    let args_sub = subs[2];
+    let args =
+      switch (args_sub) {
+      | Some(sub) => String.split(sub, ~on=' ') |> filter_empty_string
+      | None => []
+      };
+    Ok((command, args));
+  | exception (Exceptions.Regex_match_failed(message)) => Error(message)
   };
 };
 
-module Action = {
-  module Event = {
-    type t =
-      | Command(string, option(list(string)))
-      | Unknown;
-
-    let to_string = event => {
-      switch (event) {
-      | Command(_, _) => "command"
-      | Unknown => "Unknown"
-      };
+let process_input = input =>
+  if (String.is_prefix(input, ~prefix="!")) {
+    switch (parse_command(input)) {
+    | Ok((name, args)) => Ok(Input.Command(input, name, args))
+    | Error(message) => Error(InvalidCommand(input, message))
     };
+  } else {
+    Ok(Input.Sentence(input));
   };
 
-  module Runner = {
-    type url = string;
-
-    type t =
-      | HttpResponse(
-          url,
-          Cohttp.Code.meth,
-          list(HTTPResponse.status_code),
-          HTTPResponse.Params.t,
-          HTTPResponse.Headers.t,
-        )
-      | DirectResponse;
-
-    let to_string = runner => {
-      switch (runner) {
-      | DirectResponse => "DirectResponse"
-      | HttpResponse(_) => "HttpResponse"
-      };
-    };
-  };
-
-  type t = {
-    name: string,
-    from: Origin.t,
-    on: Event.t,
-    runner: Runner.t,
-  };
+let build_action_event_array = (actions: array(Action.t)) => {
+  Array.map(actions, ~f=action =>
+    List.map(action.on, event => (action, event)) |> List.to_array
+  )
+  |> Array.to_list
+  |> Array.concat;
 };
 
 let find_action_or_default =
-    (origin, actions: list(Action.t), command, default) => {
-  let result =
-    List.find(actions, ~f=action => {
-      switch (action.on) {
-      | Action.Event.Command(identifier, _) =>
-        String.equal(identifier, command)
-        && (Poly.(origin == action.from) || Poly.(action.from == Origin.All))
-      | _ => false
-      }
-    });
-  switch (result) {
-  | Some(action) => action
-  | None => default
+    (incoming: Incoming.t, actions: array(Action.t), default: Action.t) => {
+  let found_opt = {
+    actions
+    |> build_action_event_array
+    |> Array.find(~f=(item: (Action.t, Event.t)) => {
+         switch (item, incoming.input) {
+         | ((action, Command(event_name)), Command(_, input_name, _))
+             when Poly.(input_name == event_name) =>
+           true
+         | _ => false
+         }
+       });
+  };
+  switch (found_opt) {
+  | Some((action, event)) => (action, Some(event))
+  | None => (default, None)
   };
 };
 
-let process_input = (origin, input, actions, default) => {
-  switch (Parser.parse_command(input)) {
-  | Ok((command, args)) =>
-    find_action_or_default(origin, actions, command, default)
-  | Error(_) => default
+let execute_directreponse = (incoming: Incoming.t) => {
+  switch (incoming.input) {
+  | Input.Command(_, name, _) when Poly.(name == "ping") =>
+    Lwt_result.return(Response.Ok_)
+  | Input.Command(_, name, _) when Poly.(name == "unknown") =>
+    Lwt_result.return(Response.Error("Unknown command"))
+  | _ => Lwt_result.fail("Command execution failed")
   };
 };
 
-let execute_ping = _ => {
-  Lwt.(
-    Lwt_unix.sleep(1.0)
-    >>= (
-      () => {
-        Console.log("sleep terminal");
-        Lwt_result.return("ping");
-      }
-    )
-  );
-};
-
-let execute_nothing = _ =>
-  Lwt_result.return("Franchement, j'ai rien compris");
-
-let get_direct_response_executor = (command, args) => {
-  switch (command) {
-  | "!ping" => DirectResponse.execute_ping()
-  | _ => DirectResponse.execute_unknown()
-  };
-};
-
-let execute = (action: Action.t) => {
-  Lwt.(
+let execute =
+    (incoming: Incoming.t, event: option(Event.t), action: Action.t) => {
+  let thread =
     switch (action.runner) {
-    | DirectResponse =>
-      switch (action.on) {
-      | Command(command, args) => get_direct_response_executor(command, args)
-      | Unknown => DirectResponse.execute_unknown()
-      }
-    | HttpResponse(url, method, allowed, params, headers) =>
+    | Action.Runner.DirectResponse => execute_directreponse(incoming)
+    | Action.Runner.HttpResponse(url, method, allowed, params, headers) =>
       HTTPResponse.execute_http_request(url, method, allowed, params, headers)
-      >>= (body => Lwt_result.return(Response.Text(body)))
+    };
+  thread
+  >>= (
+    response_res => {
+      switch (response_res) {
+      | Ok(response) =>
+        let outgoing = Outgoing.{action, response, event};
+        Lwt_result.return(Interaction.make(incoming, outgoing));
+      | Error(message) => Lwt_result.fail(message)
+      };
     }
   );
 };

@@ -1,0 +1,4 @@
+(library
+  (name Core)
+  (public_name ace.core)
+  (libraries base cohttp))

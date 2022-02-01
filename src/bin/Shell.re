@@ -4,48 +4,70 @@ open Base;
 open Stdio;
 open Ace;
 open Processor;
+open Core;
+open Core.Types;
+open Core.Types.Http;
 
 let actions =
-  Action.[
-    {
-      name: "Ping response",
-      from: Origin.Shell,
-      on: Action.Event.Command("!ping", None),
-      runner: Action.Runner.DirectResponse,
-    },
-    {
-      name: "test http response",
-      from: Origin.Shell,
-      on: Action.Event.Command("!hello", None),
-      runner:
-        Action.Runner.HttpResponse(
-          "http://localhost:5000/",
-          Cohttp.Code.method_of_string("GET"),
-          [HTTPResponse.S2xx],
-          [("toto", "titi"), ("bidule", "machin")],
-          Cohttp.Header.of_list([
-            ("Content-type", "text/plain"),
-            ("machine", "trucmuche"),
-          ]),
-        ),
-    },
-  ];
+  Types.Action.(
+    [|
+      {
+        name: "Ping response",
+        from: Origin.Shell,
+        on: [Event.Command("ping")],
+        runner: Action.Runner.DirectResponse,
+      },
+      {
+        name: "test http response",
+        from: Origin.Shell,
+        on: [Event.Command("hello"), Event.Command("hello2")],
+        runner:
+          Action.Runner.HttpResponse(
+            "http://localhost:5000/json",
+            Cohttp.Code.method_of_string("GET"),
+            [Http.S2xx],
+            [("toto", "titi"), ("bidule", "machin")],
+            Cohttp.Header.of_list([
+              ("Content-type", "text/plain"),
+              ("machine", "trucmuche"),
+            ]),
+          ),
+      },
+      {
+        name: "test http response",
+        from: Origin.Shell,
+        on: [Event.Command("error")],
+        runner:
+          Action.Runner.HttpResponse(
+            "http://localhost:5000/error",
+            Cohttp.Code.method_of_string("GET"),
+            [Http.S2xx],
+            [("toto", "titi"), ("bidule", "machin")],
+            Cohttp.Header.of_list([
+              ("Content-type", "text/plain"),
+              ("machine", "trucmuche"),
+            ]),
+          ),
+      },
+    |]
+  );
 
-let default =
-  Action.{
-    name: "Unknown",
-    from: Processor.Origin.Shell,
-    on: Processor.Action.Event.Unknown,
-    runner: Processor.Action.Runner.DirectResponse,
+let default: Action.t = {
+  name: "Unknown",
+  from: Types.Origin.Shell,
+  on: [],
+  runner: Types.Action.Runner.DirectResponse,
+};
+
+let shell_commands = [|"exit", "quit", "clear"|];
+
+let handle_result = interaction_res => {
+  let io_writer = Lwt_io.write_line(Lwt_io.stdout);
+  switch (interaction_res) {
+  | Ok(interaction) =>
+    io_writer @@ Ace_Renderers.ShellRenderer.render(interaction)
+  | Error(_) => io_writer("Erreur")
   };
-
-let shell_commands = ["exit", "quit", "clear"];
-
-let handle_result = (input, action, response) => {
-  let output =
-    Widgets.make(input, action, response)
-    |> Widgets.render(Widgets.Destination.Shell);
-  Lwt_io.write_line(Lwt_io.stdout, output);
 };
 
 module Prompt = {
@@ -102,36 +124,36 @@ module Prompt = {
       LTerm_text.E_reverse,
     );
 
-  let string = text => [LTerm_text.S(text)];
+  module Text = {
+    let createElement = (~children=[], ()) => {
+      List.map(children, ~f=child => LTerm_text.S(child));
+    };
+  };
 
-  let style =
-      (
-        ~foreground=?,
-        ~background=?,
-        ~bold=false,
-        ~underline=false,
-        ~blink=false,
-        ~reverse=false,
-        ~children=[],
-        (),
-      ) => {
-    let c =
+  module Style = {
+    let createElement =
+        (
+          ~foreground=?,
+          ~background=?,
+          ~bold=false,
+          ~underline=false,
+          ~blink=false,
+          ~reverse=false,
+          ~children=[],
+          (),
+        ) => {
       List.fold(
         children,
         ~f=(acc, child) => List.append(acc, child),
         ~init=[],
-      );
-    c
-    |> fg(foreground)
-    |> bg(background)
-    |> b(Some(bold))
-    |> u(Some(underline))
-    |> bk(Some(blink))
-    |> r(Some(reverse));
-  };
-
-  let text = (~children=[], ()) => {
-    List.map(children, ~f=child => LTerm_text.S(child));
+      )
+      |> fg(foreground)
+      |> bg(background)
+      |> b(Some(bold))
+      |> u(Some(underline))
+      |> bk(Some(blink))
+      |> r(Some(reverse));
+    };
   };
 };
 
@@ -139,29 +161,31 @@ let make_prompt = line_number => {
   let formated_line_number = line_number |> Int.to_string;
   let markup =
     Prompt.(
-      <style foreground=LTerm_style.green>
-        <text> "In [" </text>
-        <style foreground=LTerm_style.lgreen bold=true>
-          <text> formated_line_number </text>
-        </style>
-        <text> "]: " </text>
-      </style>
+      <Style foreground=LTerm_style.green>
+        <Style foreground=LTerm_style.red bold=true>
+          <Text> "Ace shell" </Text>
+        </Style>
+        <Text> " [" </Text>
+        <Style foreground=LTerm_style.lgreen bold=true>
+          <Text> formated_line_number </Text>
+        </Style>
+        <Text> "]: " </Text>
+      </Style>
     );
   markup |> LTerm_text.eval;
 };
 
-let time = {
-  let (time, set_time) = S.create(Unix.time());
-  /* Update the time every second. */
-  ignore(Lwt_engine.on_timer(1.0, true, _ => set_time(Unix.time())));
-  time;
-};
-
-let execute_command = input => {
-  let action =
-    Processor.process_input(Processor.Origin.Shell, input, actions, default);
-  Processor.execute(action)
-  >>= (response => handle_result(input, action, response));
+let execute_command = (input_text, actions) => {
+  let input_res = Processor.process_input(input_text);
+  switch (input_res) {
+  | Ok(input) =>
+    let incoming =
+      Incoming.{input, origin: Origin.Shell, destination: Origin.Shell};
+    let (action, event_opt) =
+      Processor.find_action_or_default(incoming, actions, default);
+    action |> Processor.execute(incoming, event_opt) >>= handle_result;
+  | Error(message) => Lwt.return()
+  };
 };
 
 class read_line (~term, ~history, ~exit_code, ~binaries, ~line_number) = {
@@ -182,41 +206,37 @@ class read_line (~term, ~history, ~exit_code, ~binaries, ~line_number) = {
     );
   };
   initializer (
-    this#set_prompt(
-      S.l2((size, time) => make_prompt(line_number), this#size, time),
-    )
+    this#set_prompt(S.l1(size => make_prompt(line_number), this#size))
   );
 };
 
-let get_binaries = (actions: list(Action.t), shell_commands) => {
-  let commands =
-    List.filter(actions, ~f=action => {
-      switch (action.on) {
-      | Action.Event.Command(_, _) => true
-      | _ => false
-      }
-    });
-  let command_list =
-    List.map(
-      commands,
-      ~f=action => {
-        let command_name =
-          switch (action.on) {
-          | Action.Event.Command(name, _) => name
-          | _ => ""
-          };
-        Zed_string.unsafe_of_utf8(command_name);
-      },
-    );
+let get_binaries = (actions: array(Action.t), shell_commands) => {
   List.concat([
-    command_list,
-    List.map(shell_commands, ~f=shell_command =>
-      Zed_string.unsafe_of_utf8(shell_command)
-    ),
+    actions
+    |> Array.to_list
+    |> List.map(~f=(action: Action.t) => {
+         List.filter(action.on, ~f=event =>
+           switch (event) {
+           | Event.Command(_) => true
+           }
+         )
+         |> List.map(~f=event =>
+              switch (event) {
+              | Event.Command(command) =>
+                Zed_string.unsafe_of_utf8("!" ++ command)
+              }
+            )
+       })
+    |> List.concat,
+    Array.map(shell_commands, ~f=command =>
+      Zed_string.unsafe_of_utf8(command)
+    )
+    |> Array.to_list,
   ]);
 };
 
-let rec loop = (~binaries, ~term, ~history, ~exit_code, ~line_number=1, ()) => {
+let rec loop =
+        (~binaries, ~term, ~history, ~exit_code, ~line_number=1, ~actions, ()) => {
   let read_line_engine =
     (new read_line)(
       ~term,
@@ -238,9 +258,10 @@ let rec loop = (~binaries, ~term, ~history, ~exit_code, ~line_number=1, ()) => {
         let execution =
           switch (input) {
           | "clear" =>
-            let command = ("clear", [|"clear"|]);
-            Lwt_process.exec(command) >>= (exit_code => Lwt_result.return());
-          | _ => execute_command(input) >>= (_ => Lwt_result.return())
+            let command = Lwt_process.shell("clear");
+            Lwt_process.exec(command) >>= (_ => Lwt_result.return());
+          | _ =>
+            execute_command(input, actions) >>= (_ => Lwt_result.return())
           };
         execution
         >>= (
@@ -251,6 +272,7 @@ let rec loop = (~binaries, ~term, ~history, ~exit_code, ~line_number=1, ()) => {
               ~history,
               ~exit_code,
               ~line_number=line_number + 1,
+              ~actions,
               (),
             )
         );
@@ -272,6 +294,7 @@ let run_shell = () => {
             ~term,
             ~history=LTerm_history.create([]),
             ~exit_code=0,
+            ~actions,
             (),
           )
       )

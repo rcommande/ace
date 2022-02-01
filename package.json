@@ -13,6 +13,7 @@
     "@opam/lwt": "5.4.2",
     "@opam/re2": "v0.14.0",
     "@opam/tls": "0.15.2",
+    "@opam/yojson": "1.7.0",
     "@reason-native/console": "*",
     "@reason-native/pastel": "*",
     "@reason-native/rely": "*",
