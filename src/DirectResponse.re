@@ -1,4 +1,5 @@
 open Base;
+open Core.Types;
 
 let ping_responses = [|"pong 🏓", "pong", "🏓"|];
 
@@ -17,6 +18,9 @@ let random_choice = array => {
   array[choice];
 };
 
-
-let execute_ping = () => Lwt_result.return(Response.Text(Ok(random_choice(ping_responses))));
-let execute_unknown = () => Lwt_result.return(Response.Text(Error(random_choice(unknown_responses))));
+let execute_ping = () =>
+  Lwt_result.return(Response.Text(Ok(random_choice(ping_responses))));
+let execute_unknown = () =>
+  Lwt_result.return(
+    Response.Text(Error(random_choice(unknown_responses))),
+  );
