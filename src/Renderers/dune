@@ -1,5 +1,5 @@
 (library
  (name Ace_Renderers)
  (public_name ace.renderers)
- (libraries ace.core console.lib pastel.lib))
+ (libraries ace.core))
 

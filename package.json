@@ -2,22 +2,23 @@
   "name": "ace",
   "version": "0.1.0",
   "licence": "MIT",
-  "esy": { "build": "refmterr dune build -p #{self.name}" },
+  "esy": { "build": "dune build -p #{self.name}" },
   "dependencies": {
-    "@esy-ocaml/reason": ">= 3.6.0 < 4.0.0",
     "@opam/base": "v0.14.1",
     "@opam/cmdliner": "1.0.4",
     "@opam/cohttp-lwt-unix": "5.0.0",
-    "@opam/dune": "*",
     "@opam/lambda-term": "3.1.0",
     "@opam/lwt": "5.4.2",
     "@opam/re2": "v0.14.0",
+    "@opam/reason": "~3.8.0",
     "@opam/tls": "0.15.2",
+    "@opam/yaml": "3.1.0",
     "@opam/yojson": "1.7.0",
-    "@reason-native/console": "*",
-    "@reason-native/pastel": "*",
-    "@reason-native/rely": "*",
-    "ocaml": "~4.10.0"
+    "ocaml": "~4.13.0"
   },
-  "devDependencies": { "@opam/ocaml-lsp-server": "*", "refmterr": "^3.3.2" }
+  "devDependencies": {
+    "@opam/dune": "3.0.3",
+    "@opam/ocaml-lsp-server": "*",
+    "@opam/utop": "2.9.1"
+  }
 }

@@ -36,13 +36,13 @@ let build_params = params =>
 let rec any = (items, ~f) => {
   switch (items) {
   | [] => false
-  | [item, ...rest] => f(item) ? true : any(rest, f)
+  | [item, ...rest] => f(item) ? true : any(rest, ~f)
   };
 };
 
 let valid = (allowed, resp) => {
   let status = get_status_code(resp);
-  any(allowed, code => is_allowed(code, status));
+  any(allowed, ~f=code => is_allowed(code, status));
 };
 
 let decode_string = (json, fieldname) =>
