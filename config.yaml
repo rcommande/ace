@@ -1,0 +1,45 @@
+actions:
+  - name: "Ping response"
+    from: "shell"
+    on:
+      - type: "command"
+        name: "ping"
+    runner:
+      type: DirectResponse
+  - name: "test HTTP response"
+    from: "shell"
+    on:
+      - type: "command"
+        name: "hello"
+      - type: "command"
+        name: "hello2"
+    runner:
+      type: "HttpResponse"
+      url: "http://localhost:5000/json"
+      method: "GET"
+      codes:
+        - "S2xx"
+      params:
+        toto: titi
+        bidule: machin
+      headers:
+        Content-type: "text/plain"
+        Machine: "trucmuche"
+  - name: "test HTTP error response"
+    from: "shell"
+    on:
+      - type: "command"
+        name: "error"
+    runner:
+      type: "HttpResponse"
+      url: "http://localhost:5000/error"
+      method: "GET"
+      codes:
+        - "S2xx"
+      params:
+        toto: titi
+        bidule: machin
+      headers:
+        Content-type: "text/plain"
+        Machine: "trucmuche"
+        

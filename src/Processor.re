@@ -1,7 +1,8 @@
 open Base;
-open Re2;
 open Core.Types;
+open Core.Types.Action;
 open Lwt;
+open Re2;
 
 let command_regex = Re2.create_exn("^\\!(?P<command>\\w+)\\ *(?P<args>.*)$");
 
@@ -78,8 +79,8 @@ let execute =
     (incoming: Incoming.t, event: option(Event.t), action: Action.t) => {
   let thread =
     switch (action.runner) {
-    | Action.Runner.DirectResponse => execute_directreponse(incoming)
-    | Action.Runner.HttpResponse(url, method, allowed, params, headers) =>
+    | Runner.DirectResponse => execute_directreponse(incoming)
+    | Runner.HttpResponse(url, method, allowed, params, headers) =>
       HTTPResponse.execute_http_request(url, method, allowed, params, headers)
     };
   thread

@@ -1,62 +1,22 @@
-open React;
-open Lwt;
-open Base;
-open Stdio;
 open Ace;
-open Processor;
-open Core;
-open Core.Types;
+open Ace_Renderers;
+open Base;
+open Cohttp;
+open Core.Types.Action;
 open Core.Types.Http;
-
-let actions =
-  Types.Action.(
-    [|
-      {
-        name: "Ping response",
-        from: Origin.Shell,
-        on: [Event.Command("ping")],
-        runner: Action.Runner.DirectResponse,
-      },
-      {
-        name: "test http response",
-        from: Origin.Shell,
-        on: [Event.Command("hello"), Event.Command("hello2")],
-        runner:
-          Action.Runner.HttpResponse(
-            "http://localhost:5000/json",
-            Cohttp.Code.method_of_string("GET"),
-            [Http.S2xx],
-            [("toto", "titi"), ("bidule", "machin")],
-            Cohttp.Header.of_list([
-              ("Content-type", "text/plain"),
-              ("machine", "trucmuche"),
-            ]),
-          ),
-      },
-      {
-        name: "test http response",
-        from: Origin.Shell,
-        on: [Event.Command("error")],
-        runner:
-          Action.Runner.HttpResponse(
-            "http://localhost:5000/error",
-            Cohttp.Code.method_of_string("GET"),
-            [Http.S2xx],
-            [("toto", "titi"), ("bidule", "machin")],
-            Cohttp.Header.of_list([
-              ("Content-type", "text/plain"),
-              ("machine", "trucmuche"),
-            ]),
-          ),
-      },
-    |]
-  );
+open Core.Types.Origin;
+open Core.Types;
+open Core;
+open Lwt;
+open Processor;
+open React;
+open Stdio;
 
 let default: Action.t = {
   name: "Unknown",
-  from: Types.Origin.Shell,
+  from: Origin.Shell,
   on: [],
-  runner: Types.Action.Runner.DirectResponse,
+  runner: Runner.DirectResponse,
 };
 
 let shell_commands = [|"exit", "quit", "clear"|];
@@ -64,9 +24,8 @@ let shell_commands = [|"exit", "quit", "clear"|];
 let handle_result = interaction_res => {
   let io_writer = Lwt_io.write_line(Lwt_io.stdout);
   switch (interaction_res) {
-  | Ok(interaction) =>
-    io_writer @@ Ace_Renderers.ShellRenderer.render(interaction)
-  | Error(_) => io_writer("Erreur")
+  | Ok(interaction) => io_writer @@ ShellRenderer.render(interaction)
+  | Error(error) => io_writer(error)
   };
 };
 
@@ -282,21 +241,41 @@ let rec loop =
 };
 
 let run_shell = () => {
-  let binaries = get_binaries(actions, shell_commands);
-  LTerm_inputrc.load()
+  Settings.read_config_file("config.yaml")
   >>= (
-    () =>
-      Lazy.force(LTerm.stdout)
-      >>= (
-        term =>
-          loop(
-            ~binaries,
-            ~term,
-            ~history=LTerm_history.create([]),
-            ~exit_code=0,
-            ~actions,
-            (),
-          )
-      )
+    settings_res => {
+      switch (settings_res) {
+      | Ok(settings) =>
+        let actions = settings.actions;
+        let binaries = get_binaries(actions, shell_commands);
+        LTerm_inputrc.load()
+        >>= (
+          () =>
+            Lazy.force(LTerm.stdout)
+            >>= (
+              term =>
+                loop(
+                  ~binaries,
+                  ~term,
+                  ~history=LTerm_history.create([]),
+                  ~exit_code=0,
+                  ~actions,
+                  (),
+                )
+            )
+        );
+      | Error(msg) =>
+        let _ =
+          Lwt_io.(
+            write_line(stdout, "Unable to read the config file : " ++ msg)
+          );
+        Lwt_result.return();
+      };
+    }
   );
+};
+
+let run = () => {
+  let _ = Lwt_main.run(run_shell());
+  ();
 };

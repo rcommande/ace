@@ -1,6 +1,9 @@
 open Base;
-open Lwt;
+open Cohttp_lwt_unix;
 open Core.Types;
+open Lwt;
+open Yojson.Basic;
+open Yojson;
 
 type action_result =
   | ResultOK(string, string)
@@ -46,7 +49,7 @@ let valid = (allowed, resp) => {
 };
 
 let decode_string = (json, fieldname) =>
-  Yojson.Basic.Util.member(fieldname, json) |> Yojson.Basic.Util.to_string;
+  Util.member(fieldname, json) |> Util.to_string;
 
 let decode_ok_response = json => {
   let content = decode_string(json, "content");
@@ -75,12 +78,11 @@ let build_response = res => {
 };
 
 let read_body = body => {
-  open Yojson;
   open Response;
-  let json = Yojson.Basic.from_string(body);
+  let json = Basic.from_string(body);
   switch (decode_result(json)) {
   | item => build_response(item)
-  | exception (Yojson.Basic.Util.Type_error(_, _)) =>
+  | exception (Util.Type_error(_, _)) =>
     Response.Text(Error("Unreadable response"))
   };
 };
@@ -97,7 +99,6 @@ let handle_response = (allowed, (resp, body)) => {
 };
 
 let execute_http_request = (url, method, allowed, params, headers) => {
-  open Cohttp_lwt_unix;
   let uri = Uri.of_string(url ++ build_params(params));
   Lwt.catch(
     () => Client.call(method, uri, ~headers) >>= handle_response(allowed),
