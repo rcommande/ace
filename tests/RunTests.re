@@ -1,2 +1,2 @@
 /* RunTests.re */
-Ace_Tests.TestFramework.cli();
+/* Ace_Tests.TestFramework.cli(); */
