@@ -2,4 +2,4 @@
  (name Ace)
  (public_name ace)
  (modules (:standard))
- (libraries base re lwt lwt.unix pastel.lib console.lib re2 cohttp-lwt-unix yojson ace.core ace.renderers))
+ (libraries base re lwt lwt.unix re2 cohttp-lwt-unix yojson ace.core ace.renderers yaml))

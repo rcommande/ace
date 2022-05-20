@@ -1,12 +1,13 @@
 open Base;
-open Re2;
 open Core.Types;
+open Core.Types.Action;
 open Lwt;
+open Re2;
 
 let command_regex = Re2.create_exn("^\\!(?P<command>\\w+)\\ *(?P<args>.*)$");
 
 let filter_empty_string = string_list =>
-  List.filter(string_list, item => Poly.(item != ""));
+  List.filter(string_list, ~f=item => Poly.(item != ""));
 
 type error =
   | InvalidCommand(string, string);
@@ -38,7 +39,7 @@ let process_input = input =>
 
 let build_action_event_array = (actions: array(Action.t)) => {
   Array.map(actions, ~f=action =>
-    List.map(action.on, event => (action, event)) |> List.to_array
+    List.map(action.on, ~f=event => (action, event)) |> List.to_array
   )
   |> Array.to_list
   |> Array.concat;
@@ -78,8 +79,8 @@ let execute =
     (incoming: Incoming.t, event: option(Event.t), action: Action.t) => {
   let thread =
     switch (action.runner) {
-    | Action.Runner.DirectResponse => execute_directreponse(incoming)
-    | Action.Runner.HttpResponse(url, method, allowed, params, headers) =>
+    | Runner.DirectResponse => execute_directreponse(incoming)
+    | Runner.HttpResponse(url, method, allowed, params, headers) =>
       HTTPResponse.execute_http_request(url, method, allowed, params, headers)
     };
   thread

@@ -8,6 +8,20 @@ module Http = {
     | S5xx
     | S(int);
 
+  let status_code_from_string = code_str => {
+    switch (code_str) {
+    | "S2xx" => S2xx
+    | "S3xx" => S3xx
+    | "S4xx" => S4xx
+    | "S5xx" => S5xx
+    | _ =>
+      switch (Int.of_string(code_str)) {
+      | code => S(code)
+      | exception _ => raise(Invalid_argument(code_str))
+      }
+    };
+  };
+
   type params = list((string, string));
 };
 
@@ -43,6 +57,16 @@ module Origin = {
     | Slack => "slack"
     | Event => "event"
     | Shell => "shell"
+    };
+  };
+
+  let from_string = value => {
+    switch (value) {
+    | "all" => Ok(All)
+    | "slack" => Ok(Slack)
+    | "event" => Ok(Event)
+    | "shell" => Ok(Shell)
+    | _ => Error("Invalid origin")
     };
   };
 };

@@ -1,18 +1,19 @@
 open Core.Types;
-open Pastel;
+/* open Pastel; */
+open ANSITerminal;
 
 module InteractionItem = {
   let createElement = (~key, ~value, ~color, ~children=[], ()) => {
-    <Pastel>
-      <Pastel color> {key ++ ": "} </Pastel>
-      <Pastel color=Pastel.White> value </Pastel>
-    </Pastel>;
+    <Ministel>
+      <Ministel color> {key ++ ": "} </Ministel>
+      <Ministel color=white> value </Ministel>
+    </Ministel>;
   };
 };
 
 let render_interaction = (interaction: Interaction.t, color) => {
   let (incoming, outgoing) = interaction;
-  <Pastel>
+  <Ministel>
     <InteractionItem
       key="INPUT"
       value={"\"" ++ Input.to_string(incoming.input) ++ "\""}
@@ -55,12 +56,9 @@ let render_interaction = (interaction: Interaction.t, color) => {
       color
     />
     "\r\n"
-  </Pastel>;
+  </Ministel>;
 };
 
-let render_text = interaction =>
-  render_interaction(interaction, Pastel.Green);
-let render_error = interaction => {
-  render_interaction(interaction, Pastel.Red);
-};
-let render_ok = interaction => render_interaction(interaction, Pastel.Green);
+let render_text = interaction => render_interaction(interaction, green);
+let render_error = interaction => render_interaction(interaction, red);
+let render_ok = interaction => render_interaction(interaction, green);
