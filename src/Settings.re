@@ -3,15 +3,16 @@ open Lwt;
 open Core;
 open Yaml;
 
+type slack = {oauth_token: string};
+
 type t = {
   version: string,
   actions: array(Types.Action.t),
+  slack: option(slack),
 };
 
 exception Config_error(string);
 exception Validation_error(string);
-
-let config = {version: "0.1.0", actions: [||]};
 
 module Decoder = {
   let string = (path, value: value) => {
@@ -25,6 +26,13 @@ module Decoder = {
     switch (yaml) {
     | `A(values) => List.map(values, ~f=value => decoder(path, value))
     | _ => raise(Config_error(path ++ " must be a list"))
+    };
+  };
+
+  let option = (decoder, path, yaml: value) => {
+    switch (decoder(path, yaml)) {
+    | value => Some(value)
+    | exception _ => None
     };
   };
 
@@ -47,14 +55,16 @@ module Decoder = {
     };
   };
 
-  let member = (key, yaml: value) => {
+  let member = (~optional=false, key, yaml: value) => {
     switch (yaml) {
     | `O(values) =>
       let res =
         List.find(values, ~f=((k, value)) => Poly.(k == key) ? true : false);
       switch (res) {
       | Some((_, value)) => value
-      | None => raise(Config_error("Unable to find key : " ++ key))
+      | None =>
+        optional
+          ? `Null : raise(Config_error("Unable to find key : " ++ key))
       };
     | _ => raise(Config_error("Must be an object"))
     };
@@ -166,6 +176,18 @@ let action = (path, yaml: value) => {
   };
 };
 
+let slack = (path, yaml: value) => {
+  switch (yaml) {
+  | `O(_) => {
+      oauth_token:
+        Decoder.(
+          yaml |> member("oauth_token") |> string(path ++ ".oauth_token")
+        ),
+    }
+  | _ => raise(Config_error("Slack configuration must be an object"))
+  };
+};
+
 let decode_config = content => {
   let yaml = Yaml.of_string_exn(content);
   Lwt_result.return(
@@ -174,6 +196,8 @@ let decode_config = content => {
         version: "0.1.0",
         actions:
           yaml |> member("actions") |> list(action, "") |> List.to_array,
+        slack:
+          yaml |> member("slack", ~optional=true) |> option(slack, "slack"),
       }
     ),
   );

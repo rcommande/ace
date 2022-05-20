@@ -42,4 +42,7 @@ actions:
       headers:
         Content-type: "text/plain"
         Machine: "trucmuche"
+
+slack:
+  oauth_token: "xoxb-3529641732694-3536313147651-jIhr9wbiky6djmVcHZlzVyDv"
         
