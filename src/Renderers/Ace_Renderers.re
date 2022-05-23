@@ -23,3 +23,4 @@ module Renderer = (Implementation: RendererImpl) => {
 };
 
 module ShellRenderer = Renderer(ShellRenderer);
+module SlackRenderer = Renderer(SlackRenderer);

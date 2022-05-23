@@ -1,5 +1,4 @@
 open Core.Types;
-/* open Pastel; */
 open ANSITerminal;
 
 module InteractionItem = {
