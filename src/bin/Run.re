@@ -4,15 +4,6 @@ open Base;
 open Cohttp;
 open Cohttp_lwt_unix;
 
-/* To delete */
-let default: Types.Action.t = {
-  name: "Unknown",
-  from: Types.Origin.Shell,
-  on: [],
-  runner: Types.Action.Runner.DirectResponse,
-};
-/* end to delete */
-
 type slack_slash_command = {
   token: string,
   team_id: string,
@@ -25,6 +16,10 @@ type slack_slash_command = {
   text: string,
   response_url: string,
 };
+
+type errors =
+  | ResponseSendingError(exn)
+  | CommandExecutionError(string);
 
 let find = (form, key) => {
   let (_, value) = List.find_exn(form, ~f=((k, v)) => Poly.(k == key));
@@ -47,53 +42,51 @@ let decode_slack_slash_command = body => {
   };
 };
 
-let get_command_thread = (text, config: Ace.Settings.t) => {
-  switch (String.split(text, ~on=' ')) {
-  | ["ping", ...rest] =>
-    let input_res = Processor.process_input("!ping");
-    switch (input_res) {
-    | Ok(input) =>
-      let incoming =
-        Types.Incoming.{
-          input,
-          origin: Types.Origin.Slack,
-          destination: Types.Origin.Slack,
-        };
-      let (action, event_opt) =
-        Processor.find_action_or_default(incoming, config.actions, default);
-      Some(Processor.execute(incoming, event_opt, action));
-    | Error(message) => None
-    };
-  | _ => None
-  };
+let send_response = (body, response_url) => {
+  let uri = Uri.of_string(response_url);
+  Lwt.(
+    catch(
+      () => Client.post(~body, uri) >>= (_ => Lwt_result.return()),
+      exn => Lwt_result.fail(ResponseSendingError(exn)),
+    )
+  );
 };
 
-let test = (body, config) => {
-  let command = decode_slack_slash_command(body);
-
-  let thread_opt = get_command_thread(command.text, config);
-  let _ =
-    Lwt.(
-      switch (thread_opt) {
-      | Some(thread) =>
-        thread
-        >>= (
-          incoming_res => {
-            switch (incoming_res) {
-            | Ok(interaction) =>
-              let body =
-                interaction
-                |> Ace_Renderers.SlackRenderer.render
-                |> Cohttp_lwt.Body.of_string;
-              let uri = Uri.of_string(command.response_url);
-              Client.post(~body, uri) >>= (_ => Lwt.return());
-            | Error(msg) => Lwt_io.(write_line(stdout, msg))
-            };
-          }
-        )
-      | None => Lwt_io.(write_line(stdout, "Error !"))
+let execute_command = (body, config: Settings.t) => {
+  let slack_command = decode_slack_slash_command(body);
+  Dream.info(log => log("Slack command received: %s", slack_command.text));
+  Lwt.(
+    Processor.run_command(
+      "!" ++ slack_command.text,
+      config.actions,
+      config.default_action,
+      Types.Service.Slack,
+      Types.Service.Slack,
+    )
+    >>= (
+      interaction_res => {
+        switch (interaction_res) {
+        | Ok(interaction) =>
+          let body =
+            interaction
+            |> Ace_Renderers.SlackRenderer.render
+            |> Cohttp_lwt.Body.of_string;
+          send_response(body, slack_command.response_url);
+        | Error(msg) => Lwt_result.fail(CommandExecutionError(msg))
+        };
       }
-    );
+    )
+  );
+};
+
+let log_result = res => {
+  switch (res) {
+  | Ok(_) =>
+    Dream.info(log => log("%s", "Slack command response sent successfully"))
+  | Error(ResponseSendingError(_)) =>
+    Dream.error(log => log("%s", "Error while sending response to Slack"))
+  | Error(CommandExecutionError(msg)) => Dream.error(log => log("%s", msg))
+  };
   Lwt.return();
 };
 
@@ -103,7 +96,7 @@ let slack_slash = (config, request) => {
       Dream.body(request)
       >>= (
         body => {
-          let _ = Lwt.async(() => test(body, config));
+          async(() => {execute_command(body, config) >>= log_result});
           Lwt.return();
         }
       )
@@ -112,26 +105,17 @@ let slack_slash = (config, request) => {
 };
 
 let start_server = () => {
-  let config_path = "config.yaml";
-  let config =
-    Lwt.(
-      Lwt_main.run(
-        Settings.read_config_file(config_path)
-        >>= (
-          config_res => {
-            switch (config_res) {
-            | Ok(config) => Lwt.return(config)
-            | Error(_) => Lwt.fail(Not_found)
-            };
-          }
-        ),
-      )
-    );
-  Dream.initialize_log(~level=`Debug, ());
-  Dream.(
-    run @@
-    logger @@
-    router([Dream.post("/slack/command", slack_slash(config))])
-  );
-  ();
+  let config_res = Settings.read_config_file_sync("config.yaml");
+  switch (config_res) {
+  | Ok(config) =>
+    /* Dream.initialize_log(~level=`Debug, ()); */
+    let _ =
+      Dream.(
+        run @@
+        logger @@
+        router([Dream.post("/slack/command", slack_slash(config))])
+      );
+    ();
+  | Error(msg) => Stdio.Out_channel.(output_string(stdout, msg))
+  };
 };

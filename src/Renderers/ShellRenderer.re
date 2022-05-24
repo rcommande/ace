@@ -21,13 +21,13 @@ let render_interaction = (interaction: Interaction.t, color) => {
     "\r\n"
     <InteractionItem
       key="ORIGIN"
-      value={Origin.to_string(incoming.origin)}
+      value={Service.to_string(incoming.origin)}
       color
     />
     "\r\n"
     <InteractionItem
       key="DESTINATION"
-      value={Origin.to_string(incoming.destination)}
+      value={Service.to_string(incoming.destination)}
       color
     />
     "\r\n"

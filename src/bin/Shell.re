@@ -4,20 +4,13 @@ open Base;
 open Cohttp;
 open Core.Types.Action;
 open Core.Types.Http;
-open Core.Types.Origin;
+open Core.Types.Service;
 open Core.Types;
 open Core;
 open Lwt;
 open Processor;
 open React;
 open Stdio;
-
-let default: Action.t = {
-  name: "Unknown",
-  from: Origin.Shell,
-  on: [],
-  runner: Runner.DirectResponse,
-};
 
 let shell_commands = [|"exit", "quit", "clear"|];
 
@@ -134,12 +127,12 @@ let make_prompt = line_number => {
   markup |> LTerm_text.eval;
 };
 
-let execute_command = (input_text, actions) => {
+let execute_command = (input_text, actions, default) => {
   let input_res = Processor.process_input(input_text);
   switch (input_res) {
   | Ok(input) =>
     let incoming =
-      Incoming.{input, origin: Origin.Shell, destination: Origin.Shell};
+      Incoming.{input, origin: Service.Shell, destination: Service.Shell};
     let (action, event_opt) =
       Processor.find_action_or_default(incoming, actions, default);
     action |> Processor.execute(incoming, event_opt) >>= handle_result;
@@ -195,7 +188,16 @@ let get_binaries = (actions: array(Action.t), shell_commands) => {
 };
 
 let rec loop =
-        (~binaries, ~term, ~history, ~exit_code, ~line_number=1, ~actions, ()) => {
+        (
+          ~binaries,
+          ~term,
+          ~history,
+          ~exit_code,
+          ~line_number=1,
+          ~actions,
+          ~default_action,
+          (),
+        ) => {
   let read_line_engine =
     (new read_line)(
       ~term,
@@ -220,7 +222,8 @@ let rec loop =
             let command = Lwt_process.shell("clear");
             Lwt_process.exec(command) >>= (_ => Lwt_result.return());
           | _ =>
-            execute_command(input, actions) >>= (_ => Lwt_result.return())
+            execute_command(input, actions, default_action)
+            >>= (_ => Lwt_result.return())
           };
         execution
         >>= (
@@ -232,6 +235,7 @@ let rec loop =
               ~exit_code,
               ~line_number=line_number + 1,
               ~actions,
+              ~default_action,
               (),
             )
         );
@@ -240,42 +244,38 @@ let rec loop =
   );
 };
 
-let run_shell = () => {
-  Settings.read_config_file("config.yaml")
+let run_shell = (config: Settings.t) => {
+  let actions = config.actions;
+  let default_action = config.default_action;
+  let binaries = get_binaries(actions, shell_commands);
+  LTerm_inputrc.load()
   >>= (
-    settings_res => {
-      switch (settings_res) {
-      | Ok(settings) =>
-        let actions = settings.actions;
-        let binaries = get_binaries(actions, shell_commands);
-        LTerm_inputrc.load()
-        >>= (
-          () =>
-            Lazy.force(LTerm.stdout)
-            >>= (
-              term =>
-                loop(
-                  ~binaries,
-                  ~term,
-                  ~history=LTerm_history.create([]),
-                  ~exit_code=0,
-                  ~actions,
-                  (),
-                )
-            )
-        );
-      | Error(msg) =>
-        let _ =
-          Lwt_io.(
-            write_line(stdout, "Unable to read the config file : " ++ msg)
-          );
-        Lwt_result.return();
-      };
-    }
+    () =>
+      Lazy.force(LTerm.stdout)
+      >>= (
+        term =>
+          loop(
+            ~binaries,
+            ~term,
+            ~history=LTerm_history.create([]),
+            ~exit_code=0,
+            ~actions,
+            ~default_action,
+            (),
+          )
+      )
   );
 };
 
 let run = () => {
-  let _ = Lwt_main.run(run_shell());
+  let _ =
+    switch (Settings.read_config_file_sync("config.yaml")) {
+    | Ok(config) =>
+      let _ = run_shell(config) |> Lwt_main.run;
+      ();
+    | Error(msg) =>
+      let _ = Lwt_io.(write_line(stdout, msg));
+      ();
+    };
   ();
 };

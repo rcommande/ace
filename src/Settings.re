@@ -8,6 +8,7 @@ type slack = {oauth_token: string};
 type t = {
   version: string,
   actions: array(Types.Action.t),
+  default_action: Types.Action.t,
   slack: option(slack),
 };
 
@@ -74,12 +75,12 @@ module Decoder = {
 let origin = (path, yaml) => {
   switch (yaml) {
   | `String(value) =>
-    switch (Types.Origin.from_string(value)) {
+    switch (Types.Service.from_string(value)) {
     | Ok(origin) => origin
     | Error(_) =>
       raise(Config_error(path ++ ": Possible values : \"shell\""))
     }
-  | _ => raise(Config_error("Invalid"))
+  | _ => raise(Config_error("Invalid origin"))
   };
 };
 
@@ -161,18 +162,23 @@ let runner = (path, yaml: value) => {
   };
 };
 
-let action = (path, yaml: value) => {
+let action = (~on=[], path, yaml: value) => {
   switch (yaml) {
   | `O(_) =>
+    let on_or_default =
+      switch (yaml |> Decoder.member("on")) {
+      | value => value |> Decoder.list(event, path ++ ".on")
+      | exception _ => on
+      };
     Decoder.(
       Types.Action.{
         name: yaml |> member("name") |> string(path ++ ".name"),
         from: yaml |> member("from") |> origin(path ++ ".from"),
-        on: yaml |> member("on") |> list(event, path ++ ".on"),
+        on: on_or_default,
         runner: yaml |> member("runner") |> runner(path ++ ".runner"),
       }
-    )
-  | _ => raise(Config_error("Invalid"))
+    );
+  | _ => raise(Config_error("Invalid Action"))
   };
 };
 
@@ -190,23 +196,27 @@ let slack = (path, yaml: value) => {
 
 let decode_config = content => {
   let yaml = Yaml.of_string_exn(content);
-  Lwt_result.return(
-    Decoder.(
-      Types.Action.{
-        version: "0.1.0",
-        actions:
-          yaml |> member("actions") |> list(action, "") |> List.to_array,
-        slack:
-          yaml |> member("slack", ~optional=true) |> option(slack, "slack"),
-      }
-    ),
+  Decoder.(
+    Types.Action.{
+      version: "0.1.0",
+      actions:
+        yaml |> member("actions") |> list(action, "") |> List.to_array,
+      default_action:
+        yaml |> member("default_action") |> action("default_action"),
+      slack:
+        yaml |> member("slack", ~optional=true) |> option(slack, "slack"),
+    }
   );
 };
 
 let read_config_file = config_path => {
   let thread =
     Lwt_io.(open_file(~mode=Input, config_path))
-    >>= (input_channel => Lwt_io.read(input_channel) >>= decode_config);
+    >>= (
+      input_channel =>
+        Lwt_io.read(input_channel)
+        >>= (content => decode_config(content) |> Lwt_result.return)
+    );
   Lwt.catch(
     () => thread,
     exn => {
@@ -217,4 +227,11 @@ let read_config_file = config_path => {
       }
     },
   );
+};
+
+let read_config_file_sync = config_path => {
+  switch (Stdio.In_channel.read_all(config_path) |> decode_config) {
+  | config => Ok(config)
+  | exception _ => Error("Unable to read config file")
+  };
 };

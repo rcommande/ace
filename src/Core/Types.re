@@ -44,7 +44,7 @@ module Response = {
   };
 };
 
-module Origin = {
+module Service = {
   type t =
     | All
     | Slack
@@ -119,7 +119,7 @@ module Action = {
 
   type t = {
     name: string,
-    from: Origin.t,
+    from: Service.t,
     on: list(Event.t),
     runner: Runner.t,
   };
@@ -130,8 +130,8 @@ module Action = {
 module Incoming = {
   type t = {
     input: Input.t,
-    origin: Origin.t,
-    destination: Origin.t,
+    origin: Service.t,
+    destination: Service.t,
   };
 };
 

@@ -6,6 +6,8 @@ open Re2;
 
 let command_regex = Re2.create_exn("^\\!(?P<command>\\w+)\\ *(?P<args>.*)$");
 
+exception Command_execution_fail;
+
 let filter_empty_string = string_list =>
   List.filter(string_list, ~f=item => Poly.(item != ""));
 
@@ -94,4 +96,16 @@ let execute =
       };
     }
   );
+};
+
+let run_command = (text, actions, default_action, origin, destination) => {
+  let input_res = process_input(text);
+  switch (input_res) {
+  | Ok(input) =>
+    let incoming = Incoming.{input, origin, destination};
+    let (action, event_opt) =
+      find_action_or_default(incoming, actions, default_action);
+    execute(incoming, event_opt, action);
+  | Error(message) => Lwt.fail(Command_execution_fail)
+  };
 };

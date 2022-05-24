@@ -43,6 +43,12 @@ actions:
         Content-type: "text/plain"
         Machine: "trucmuche"
 
+default_action:
+  name: "Unknown"
+  from: "shell"
+  runner:
+    type: "DirectResponse"
+
 slack:
   oauth_token: "xoxb-3529641732694-3536313147651-jIhr9wbiky6djmVcHZlzVyDv"
         
