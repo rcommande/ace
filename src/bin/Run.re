@@ -42,11 +42,13 @@ let decode_slack_slash_command = body => {
   };
 };
 
-let send_response = (body, response_url) => {
+let send_response = (content, response_url) => {
   let uri = Uri.of_string(response_url);
   Lwt.(
     catch(
-      () => Client.post(~body, uri) >>= (_ => Lwt_result.return()),
+      () =>
+        Client.post(~body=content |> Cohttp_lwt.Body.of_string, uri)
+        >>= (_ => Lwt_result.return()),
       exn => Lwt_result.fail(ResponseSendingError(exn)),
     )
   );
@@ -67,11 +69,9 @@ let execute_command = (body, config: Settings.t) => {
       interaction_res => {
         switch (interaction_res) {
         | Ok(interaction) =>
-          let body =
-            interaction
-            |> Ace_Renderers.SlackRenderer.render
-            |> Cohttp_lwt.Body.of_string;
-          send_response(body, slack_command.response_url);
+          let body = interaction |> Ace_Renderers.SlackRenderer.render;
+          let _ = send_response(body, slack_command.response_url);
+          Lwt_result.return(body);
         | Error(msg) => Lwt_result.fail(CommandExecutionError(msg))
         };
       }
@@ -80,12 +80,14 @@ let execute_command = (body, config: Settings.t) => {
 };
 
 let log_result = res => {
+  let log = Dream.sub_log("ace.run");
   switch (res) {
-  | Ok(_) =>
-    Dream.info(log => log("%s", "Slack command response sent successfully"))
+  | Ok(body) =>
+    log.info(log => log("%s", "Slack command response sent successfully"));
+    log.debug(log => log("%s", body));
   | Error(ResponseSendingError(_)) =>
-    Dream.error(log => log("%s", "Error while sending response to Slack"))
-  | Error(CommandExecutionError(msg)) => Dream.error(log => log("%s", msg))
+    log.error(log => log("%s", "Error while sending response to Slack"))
+  | Error(CommandExecutionError(msg)) => log.error(log => log("%s", msg))
   };
   Lwt.return();
 };
@@ -108,7 +110,7 @@ let start_server = () => {
   let config_res = Settings.read_config_file_sync("config.yaml");
   switch (config_res) {
   | Ok(config) =>
-    /* Dream.initialize_log(~level=`Debug, ()); */
+    Dream.set_log_level("ace.run", `Debug);
     let _ =
       Dream.(
         run @@
