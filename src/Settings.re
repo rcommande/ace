@@ -15,10 +15,34 @@ type t = {
 exception Config_error(string);
 exception Validation_error(string);
 
+let dotenv_regex = Re2.of_string("(\\w+)(?:\\ +)?\\=(?:\\ +)?(.+)?");
+let simple_interpolation_regex =
+  Re2.of_string("\\$((?:[[:upper:]]|_)+)|\\$\\{((?:[[:upper:]]|_)+)\\}");
+
 module Decoder = {
+  let interpolate = value => {
+    let replace_res =
+      Re2.replace(
+        simple_interpolation_regex,
+        value,
+        ~f=match => {
+          let key = Re2.Match.get_exn(~sub=`Index(1), match);
+          let value = Sys.getenv(key);
+          switch (value) {
+          | Some(res) => res
+          | None => ""
+          };
+        },
+      );
+    switch (replace_res) {
+    | Ok(new_value) => new_value
+    | Error(_) => value
+    };
+  };
+
   let string = (path, value: value) => {
     switch (value) {
-    | `String(name) => name
+    | `String(name) => name |> interpolate
     | _ => raise(Config_error(path ++ "must be a string"))
     };
   };
@@ -229,7 +253,54 @@ let read_config_file = config_path => {
   );
 };
 
+let drop_suffix_and_prefix = (str, n) => {
+  (String.drop_prefix(str, n) |> String.drop_suffix)(n);
+};
+
+let strip_quotes = str => {
+  let single_quotes =
+    String.is_prefix(str, ~prefix="'") && String.is_suffix(str, ~suffix="'");
+  let double_quotes =
+    String.is_prefix(str, ~prefix="\"")
+    && String.is_suffix(str, ~suffix="\"");
+  switch (single_quotes, double_quotes) {
+  | (true, false)
+  | (false, true) => drop_suffix_and_prefix(str, 1)
+  | _ => str
+  };
+};
+
+let read_dotenv_file_sync = path => {
+  let dotenv_lines = Stdio.In_channel.read_lines(path);
+  List.map(
+    dotenv_lines,
+    ~f=str => {
+      let res = Re2.find_submatches(dotenv_regex, str);
+      switch (res) {
+      | Ok(sub) =>
+        switch (sub) {
+        | subs =>
+          let key = Option.value(subs[1], ~default="");
+          let value =
+            Option.value(subs[2], ~default="") |> String.strip |> strip_quotes;
+          Some((key, value));
+        | exception _ => None
+        }
+      | Error(_) => None
+      };
+    },
+  )
+  |> List.iter(~f=res => {
+       switch (res) {
+       | Some((key, value)) => Unix.putenv(key, value)
+       | None => ()
+       }
+     });
+};
+
 let read_config_file_sync = config_path => {
+  read_dotenv_file_sync(".env");
+
   switch (Stdio.In_channel.read_all(config_path) |> decode_config) {
   | config => Ok(config)
   | exception _ => Error("Unable to read config file")
