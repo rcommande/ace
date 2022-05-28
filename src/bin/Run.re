@@ -120,4 +120,6 @@ let start_server = () => {
     ();
   | Error(msg) => Stdio.Out_channel.(output_string(stdout, msg))
   };
+  Stdio.Out_channel.(output_char(stdout, '\n'));
+  Stdio.Out_channel.(flush(stdout));
 };

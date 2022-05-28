@@ -12,37 +12,91 @@ type t = {
   slack: option(slack),
 };
 
+type interpolation_error =
+  | Mandatory(string);
+
 exception Config_error(string);
 exception Validation_error(string);
+exception Interpolation_error(interpolation_error);
 
 let dotenv_regex = Re2.of_string("(\\w+)(?:\\ +)?\\=(?:\\ +)?(.+)?");
-let simple_interpolation_regex =
-  Re2.of_string("\\$((?:[[:upper:]]|_)+)|\\$\\{((?:[[:upper:]]|_)+)\\}");
 
-module Decoder = {
-  let interpolate = value => {
-    let replace_res =
-      Re2.replace(
-        simple_interpolation_regex,
-        value,
-        ~f=match => {
-          let key = Re2.Match.get_exn(~sub=`Index(1), match);
-          let value = Sys.getenv(key);
-          switch (value) {
-          | Some(res) => res
-          | None => ""
-          };
-        },
-      );
-    switch (replace_res) {
-    | Ok(new_value) => new_value
-    | Error(_) => value
+module Interpolation = {
+  type interpolation =
+    | Simple(Re2.t)
+    | WithDefault(Re2.t)
+    | Mandatory(Re2.t);
+
+  let interpolations = [
+    Simple(
+      Re2.of_string("\\$((?:[[:upper:]]|_)+)|\\$\\{((?:[[:upper:]]|_)+)\\}"),
+    ),
+    WithDefault(Re2.of_string("\\$\\{((?:[[:upper:]]|_)+)(:)?-(.*)\\}")),
+    Mandatory(Re2.of_string("\\$\\{((?:[[:upper:]]|_)+)(:)?(?:\\?)(.*)\\}")),
+  ];
+
+  let replace_simple = match => {
+    let key = Re2.Match.get_exn(~sub=`Index(1), match);
+    let value_opt = Sys.getenv(key);
+    switch (value_opt) {
+    | Some(res) => res
+    | None => ""
     };
   };
 
+  let replace_with_default = match => {
+    open Re2;
+
+    let key = Match.get_exn(~sub=`Index(1), match);
+    let value_opt = Sys.getenv(key);
+    let default = Match.get_exn(~sub=`Index(3), match);
+    switch (Match.get(~sub=`Index(2), match), value_opt) {
+    | (Some(_), Some(res)) when Poly.(res == "") => default
+    | (Some(_), None) => default
+    | (None, None) => default
+    | _ => ""
+    };
+  };
+
+  let replace_mandatory = match => {
+    open Re2;
+
+    let key = Match.get_exn(~sub=`Index(1), match);
+    let value_opt = Sys.getenv(key);
+    let error_msg = Match.get_exn(~sub=`Index(3), match);
+    switch (Match.get(~sub=`Index(2), match), value_opt) {
+    | (_, None) => raise(Interpolation_error(Mandatory(error_msg)))
+    | (Some(_), Some(res)) when Poly.(res == "") =>
+      raise(Interpolation_error(Mandatory(error_msg)))
+    | (_, Some(res)) => res
+    };
+  };
+
+  let rec interpolate = (~interpolations=[], value) => {
+    switch (interpolations) {
+    | [] => value
+    | [interpolation, ...rest] =>
+      let new_value =
+        switch (interpolation) {
+        | Simple(regex) => Re2.replace_exn(regex, value, ~f=replace_simple)
+        | WithDefault(regex) =>
+          Re2.replace_exn(regex, value, ~f=replace_with_default)
+        | Mandatory(regex) =>
+          Re2.replace_exn(regex, value, ~f=replace_mandatory)
+        };
+      interpolate(~interpolations=rest, new_value);
+    };
+  };
+};
+
+module Decoder = {
   let string = (path, value: value) => {
     switch (value) {
-    | `String(name) => name |> interpolate
+    | `String(name) =>
+      name
+      |> Interpolation.interpolate(
+           ~interpolations=Interpolation.interpolations,
+         )
     | _ => raise(Config_error(path ++ "must be a string"))
     };
   };
@@ -57,7 +111,8 @@ module Decoder = {
   let option = (decoder, path, yaml: value) => {
     switch (decoder(path, yaml)) {
     | value => Some(value)
-    | exception _ => None
+    | exception (Config_error(_)) => None
+    | exception (Validation_error(_)) => None
     };
   };
 
@@ -192,7 +247,8 @@ let action = (~on=[], path, yaml: value) => {
     let on_or_default =
       switch (yaml |> Decoder.member("on")) {
       | value => value |> Decoder.list(event, path ++ ".on")
-      | exception _ => on
+      | exception (Config_error(_)) => on
+      | exception (Validation_error(_)) => on
       };
     Decoder.(
       Types.Action.{
@@ -284,7 +340,8 @@ let read_dotenv_file_sync = path => {
           let value =
             Option.value(subs[2], ~default="") |> String.strip |> strip_quotes;
           Some((key, value));
-        | exception _ => None
+        | exception (Config_error(_)) => None
+        | exception (Validation_error(_)) => None
         }
       | Error(_) => None
       };
@@ -303,6 +360,8 @@ let read_config_file_sync = config_path => {
 
   switch (Stdio.In_channel.read_all(config_path) |> decode_config) {
   | config => Ok(config)
+  | exception (Interpolation_error(Mandatory(msg))) =>
+    Error("Interpolation error: " ++ msg)
   | exception _ => Error("Unable to read config file")
   };
 };

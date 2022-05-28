@@ -50,6 +50,4 @@ default_action:
     type: "DirectResponse"
 
 slack:
-  oauth_token: "${SLACK_OAUTH_TOKEN}"
-  secret: "$$SECRET"
-        
+  oauth_token: ${SLACK_OAUTH_TOKEN:?SLACK_OAUTH_TOKEN is required}
