@@ -1,4 +1,4 @@
-module Settings = Settings;
+module Config = Config;
 module Processor = Processor;
 module DirectResponse = DirectResponse;
 module HTTPResponse = HTTPResponse;

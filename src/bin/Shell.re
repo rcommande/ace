@@ -244,7 +244,7 @@ let rec loop =
   );
 };
 
-let run_shell = (config: Settings.t) => {
+let run_shell = (config: Config.t) => {
   let actions = config.actions;
   let default_action = config.default_action;
   let binaries = get_binaries(actions, shell_commands);
@@ -269,7 +269,7 @@ let run_shell = (config: Settings.t) => {
 
 let run = () => {
   let _ =
-    switch (Settings.read_config_file_sync("config.yaml")) {
+    switch (Config.read_config_file_sync("config.yaml")) {
     | Ok(config) =>
       let _ = run_shell(config) |> Lwt_main.run;
       ();
