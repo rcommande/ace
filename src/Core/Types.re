@@ -127,6 +127,15 @@ module Action = {
   let to_string = action => action.name;
 };
 
+module Config = {
+  type bot = {name: string};
+  type t = {
+    version: string,
+    actions: array(Action.t),
+    bot,
+  };
+};
+
 module Incoming = {
   type t = {
     input: Input.t,

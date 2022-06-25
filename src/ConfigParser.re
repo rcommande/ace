@@ -1,17 +1,11 @@
 open Base;
 open Lwt;
 open Core;
+open Core.Types;
 open Yaml;
-
-type t = {
-  version: string,
-  actions: array(Types.Action.t),
-};
 
 exception Config_error(string);
 exception Validation_error(string);
-
-let config = {version: "0.1.0", actions: [||]};
 
 module Decoder = {
   let string = (path, value: value) => {
@@ -166,16 +160,29 @@ let action = (path, yaml: value) => {
   };
 };
 
+let bot = (path, yaml: value) => {
+  switch (yaml) {
+  | `O(bot) =>
+    Decoder.(
+      Config.{name: yaml |> member("name") |> string(path ++ ".name")}
+    )
+  | _ => raise(Config_error("Bot must be an object"))
+  };
+};
+
 let decode_config = content => {
   let yaml = Yaml.of_string_exn(content);
-  Lwt_result.return(
-    Decoder.(
-      Types.Action.{
-        version: "0.1.0",
-        actions:
-          yaml |> member("actions") |> list(action, "") |> List.to_array,
-      }
-    ),
+  Action.(
+    Lwt_result.return(
+      Decoder.(
+        Types.Config.{
+          version: "0.1.0",
+          actions:
+            yaml |> member("actions") |> list(action, "") |> List.to_array,
+          bot: yaml |> member("bot") |> bot("bot"),
+        }
+      ),
+    )
   );
 };
 

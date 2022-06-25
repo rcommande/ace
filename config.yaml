@@ -1,3 +1,5 @@
+bot:
+  name: "My bot"
 actions:
   - name: "Ping response"
     from: "shell"
