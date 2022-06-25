@@ -54,7 +54,7 @@ let send_response = (content, response_url) => {
   );
 };
 
-let execute_command = (body, config: Config.t) => {
+let execute_command = (body, config: ConfigParser.t) => {
   let slack_command = decode_slack_slash_command(body);
   Dream.info(log => log("Slack command received: %s", slack_command.text));
   Lwt.(
@@ -107,7 +107,7 @@ let slack_slash = (config, request) => {
 };
 
 let start_server = () => {
-  let config_res = Config.read_config_file_sync("config.yaml");
+  let config_res = ConfigParser.read_config_file_sync("config.yaml");
   switch (config_res) {
   | Ok(config) =>
     Dream.set_log_level("ace.run", `Debug);
