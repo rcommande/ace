@@ -2,7 +2,7 @@ open Base;
 open Slack.Blocks;
 open Core;
 
-let render_ok = (interaction: Types.Interaction.t) => {
+let render_ok = (config: Types.Config.t, interaction: Types.Interaction.t) => {
   let (incoming, outgoing) = interaction;
   let res = Types.Response.to_string(outgoing.response);
   let command = incoming.input |> Types.Input.to_string;
@@ -31,5 +31,5 @@ let render_ok = (interaction: Types.Interaction.t) => {
   );
 };
 
-let render_error = _ => "";
-let render_text = _ => "";
+let render_error = (_, _) => "";
+let render_text = (_, _) => "";

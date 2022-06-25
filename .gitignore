@@ -3,3 +3,4 @@ node_modules
 ace.install
 _build
 __pycache__
+.env

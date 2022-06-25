@@ -1,16 +1,8 @@
 open Base;
-open Lwt;
+open Core.Types;
 open Core;
+open Lwt;
 open Yaml;
-
-type slack = {oauth_token: string};
-
-type t = {
-  version: string,
-  actions: array(Types.Action.t),
-  default_action: Types.Action.t,
-  slack: option(slack),
-};
 
 type interpolation_error =
   | Mandatory(string);
@@ -264,28 +256,44 @@ let action = (~on=[], path, yaml: value) => {
 
 let slack = (path, yaml: value) => {
   switch (yaml) {
-  | `O(_) => {
+  | `O(_) =>
+    Types.Config.{
       oauth_token:
-        Decoder.(
-          yaml |> member("oauth_token") |> string(path ++ ".oauth_token")
+        Types.Config.(
+          Decoder.(
+            yaml |> member("oauth_token") |> string(path ++ ".oauth_token")
+          )
         ),
     }
   | _ => raise(Config_error("Slack configuration must be an object"))
   };
 };
 
+let bot = (path, yaml: value) => {
+  switch (yaml) {
+  | `O(bot) =>
+    Decoder.(
+      Config.{name: yaml |> member("name") |> string(path ++ ".name")}
+    )
+  | _ => raise(Config_error("Bot must be an object"))
+  };
+};
+
 let decode_config = content => {
   let yaml = Yaml.of_string_exn(content);
-  Decoder.(
-    Types.Action.{
-      version: "0.1.0",
-      actions:
-        yaml |> member("actions") |> list(action, "") |> List.to_array,
-      default_action:
-        yaml |> member("default_action") |> action("default_action"),
-      slack:
-        yaml |> member("slack", ~optional=true) |> option(slack, "slack"),
-    }
+  Types.Config.(
+    Decoder.(
+      Types.Action.{
+        version: "0.1.0",
+        actions:
+          yaml |> member("actions") |> list(action, "") |> List.to_array,
+        default_action:
+          yaml |> member("default_action") |> action("default_action"),
+        slack:
+          yaml |> member("slack", ~optional=true) |> option(slack, "slack"),
+        bot: yaml |> member("bot") |> bot("bot"),
+      }
+    )
   );
 };
 

@@ -127,6 +127,19 @@ module Action = {
   let to_string = action => action.name;
 };
 
+module Config = {
+  type bot = {name: string};
+  type slack = {oauth_token: string};
+
+  type t = {
+    version: string,
+    actions: array(Action.t),
+    default_action: Action.t,
+    slack: option(slack),
+    bot,
+  };
+};
+
 module Incoming = {
   type t = {
     input: Input.t,

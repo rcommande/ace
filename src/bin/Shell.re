@@ -14,10 +14,10 @@ open Stdio;
 
 let shell_commands = [|"exit", "quit", "clear"|];
 
-let handle_result = interaction_res => {
+let handle_result = (config, interaction_res) => {
   let io_writer = Lwt_io.write_line(Lwt_io.stdout);
   switch (interaction_res) {
-  | Ok(interaction) => io_writer @@ ShellRenderer.render(interaction)
+  | Ok(interaction) => io_writer @@ ShellRenderer.render(config, interaction)
   | Error(error) => io_writer(error)
   };
 };
@@ -114,28 +114,30 @@ let make_prompt = line_number => {
   let markup =
     Prompt.(
       <Style foreground=LTerm_style.green>
-        <Style foreground=LTerm_style.red bold=true>
-          <Text> "Ace shell" </Text>
+        <Style foreground=LTerm_style.yellow>
+          <Text> {"[" ++ formated_line_number ++ "]"} </Text>
         </Style>
-        <Text> " [" </Text>
-        <Style foreground=LTerm_style.lgreen bold=true>
-          <Text> formated_line_number </Text>
-        </Style>
-        <Text> "]: " </Text>
+        <Text> " you > " </Text>
       </Style>
     );
   markup |> LTerm_text.eval;
 };
 
-let execute_command = (input_text, actions, default) => {
+let execute_command = (input_text, config: Config.t) => {
   let input_res = Processor.process_input(input_text);
   switch (input_res) {
   | Ok(input) =>
     let incoming =
       Incoming.{input, origin: Service.Shell, destination: Service.Shell};
     let (action, event_opt) =
-      Processor.find_action_or_default(incoming, actions, default);
-    action |> Processor.execute(incoming, event_opt) >>= handle_result;
+      Processor.find_action_or_default(
+        incoming,
+        config.actions,
+        config.default_action,
+      );
+    action
+    |> Processor.execute(incoming, event_opt)
+    >>= handle_result(config);
   | Error(message) => Lwt.return()
   };
 };
@@ -162,9 +164,9 @@ class read_line (~term, ~history, ~exit_code, ~binaries, ~line_number) = {
   );
 };
 
-let get_binaries = (actions: array(Action.t), shell_commands) => {
+let get_binaries = (config: Config.t, shell_commands) => {
   List.concat([
-    actions
+    config.actions
     |> Array.to_list
     |> List.map(~f=(action: Action.t) => {
          List.filter(action.on, ~f=event =>
@@ -188,16 +190,7 @@ let get_binaries = (actions: array(Action.t), shell_commands) => {
 };
 
 let rec loop =
-        (
-          ~binaries,
-          ~term,
-          ~history,
-          ~exit_code,
-          ~line_number=1,
-          ~actions,
-          ~default_action,
-          (),
-        ) => {
+        (~binaries, ~term, ~history, ~exit_code, ~line_number=1, ~config, ()) => {
   let read_line_engine =
     (new read_line)(
       ~term,
@@ -221,9 +214,7 @@ let rec loop =
           | "clear" =>
             let command = Lwt_process.shell("clear");
             Lwt_process.exec(command) >>= (_ => Lwt_result.return());
-          | _ =>
-            execute_command(input, actions, default_action)
-            >>= (_ => Lwt_result.return())
+          | _ => execute_command(input, config) >>= (_ => Lwt_result.return())
           };
         execution
         >>= (
@@ -234,8 +225,7 @@ let rec loop =
               ~history,
               ~exit_code,
               ~line_number=line_number + 1,
-              ~actions,
-              ~default_action,
+              ~config,
               (),
             )
         );
@@ -244,10 +234,8 @@ let rec loop =
   );
 };
 
-let run_shell = (config: ConfigParser.t) => {
-  let actions = config.actions;
-  let default_action = config.default_action;
-  let binaries = get_binaries(actions, shell_commands);
+let run_shell = config => {
+  let binaries = get_binaries(config, shell_commands);
   LTerm_inputrc.load()
   >>= (
     () =>
@@ -259,8 +247,7 @@ let run_shell = (config: ConfigParser.t) => {
             ~term,
             ~history=LTerm_history.create([]),
             ~exit_code=0,
-            ~actions,
-            ~default_action,
+            ~config,
             (),
           )
       )
@@ -274,7 +261,10 @@ let run = () => {
       let _ = run_shell(config) |> Lwt_main.run;
       ();
     | Error(msg) =>
-      let _ = Lwt_io.(write_line(stdout, msg));
+      let _ =
+        Lwt_io.(
+          write_line(stdout, "Unable to read the config file : " ++ msg)
+        );
       ();
     };
   ();

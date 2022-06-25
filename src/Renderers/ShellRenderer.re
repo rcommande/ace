@@ -10,7 +10,15 @@ module InteractionItem = {
   };
 };
 
-let render_interaction = (interaction: Interaction.t, color) => {
+module ResponseItem = {
+  let createElement = (~botname, ~value, ~color, ~children=[], ()) => {
+    <Ministel>
+      <Ministel color=blue> {"\n" ++ botname ++ " > " ++ value} </Ministel>
+    </Ministel>;
+  };
+};
+
+let render_interaction = (config: Config.t, interaction: Interaction.t, color) => {
   let (incoming, outgoing) = interaction;
   <Ministel>
     <InteractionItem
@@ -44,20 +52,25 @@ let render_interaction = (interaction: Interaction.t, color) => {
     />
     "\r\n"
     <InteractionItem
-      key="RESPONSE"
-      value={Response.to_string(outgoing.response)}
+      key="EVENT"
+      value={Event.to_string(outgoing.event)}
       color
     />
     "\r\n"
-    <InteractionItem
-      key="EVENT"
-      value={Event.to_string(outgoing.event)}
+    <ResponseItem
+      botname={config.bot.name}
+      value={Response.to_string(outgoing.response)}
       color
     />
     "\r\n"
   </Ministel>;
 };
 
-let render_text = interaction => render_interaction(interaction, green);
-let render_error = interaction => render_interaction(interaction, red);
-let render_ok = interaction => render_interaction(interaction, green);
+let render_text = (config, interaction) =>
+  render_interaction(config, interaction, green);
+
+let render_error = (config, interaction) =>
+  render_interaction(config, interaction, red);
+
+let render_ok = (config, interaction) =>
+  render_interaction(config, interaction, green);

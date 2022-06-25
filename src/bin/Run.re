@@ -54,7 +54,7 @@ let send_response = (content, response_url) => {
   );
 };
 
-let execute_command = (body, config: ConfigParser.t) => {
+let execute_command = (body, config: Types.Config.t) => {
   let slack_command = decode_slack_slash_command(body);
   Dream.info(log => log("Slack command received: %s", slack_command.text));
   Lwt.(
@@ -69,7 +69,7 @@ let execute_command = (body, config: ConfigParser.t) => {
       interaction_res => {
         switch (interaction_res) {
         | Ok(interaction) =>
-          let body = interaction |> Ace_Renderers.SlackRenderer.render;
+          let body = Ace_Renderers.SlackRenderer.render(config, interaction);
           let _ = send_response(body, slack_command.response_url);
           Lwt_result.return(body);
         | Error(msg) => Lwt_result.fail(CommandExecutionError(msg))
