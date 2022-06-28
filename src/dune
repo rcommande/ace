@@ -2,4 +2,4 @@
  (name Ace)
  (public_name ace)
  (modules (:standard))
- (libraries base stdio re lwt lwt.unix re2 cohttp-lwt-unix yojson ace.core ace.renderers ace.slack yaml))
+ (libraries base stdio re lwt lwt.unix re2 cohttp-lwt-unix yojson ace.core ace.renderers ace.externals yaml))

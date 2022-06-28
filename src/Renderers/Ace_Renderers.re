@@ -1,4 +1,4 @@
-open Core.Types;
+open Ace_core.Types;
 
 module type RendererImpl = {
   let render_text: (Config.t, Interaction.t) => string;

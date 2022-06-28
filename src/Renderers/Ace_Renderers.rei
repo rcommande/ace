@@ -1,4 +1,4 @@
-open Core.Types;
+open Ace_core.Types;
 
 module ShellRenderer {
   let render: (Config.t, Interaction.t) => string

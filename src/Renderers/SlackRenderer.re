@@ -1,6 +1,6 @@
 open Base;
-open Slack.Blocks;
-open Core;
+open Ace_externals.Slack.Blocks;
+open Ace_core;
 
 let render_ok = (config: Types.Config.t, interaction: Types.Interaction.t) => {
   let (incoming, outgoing) = interaction;

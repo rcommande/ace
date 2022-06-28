@@ -1,4 +1,0 @@
-(library
-  (name Slack)
-  (public_name ace.slack)
-  (libraries yojson base ace.slack.blocks))

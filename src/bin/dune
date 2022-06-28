@@ -1,10 +1,4 @@
-; (rule
- ; (targets serve.re)
- ; (deps serve.eml.re)
- ; (action (run dream_eml %{deps} --workspace %{workspace_root})))
-
 (executable
  (name Cli)
  (public_name ace)
- (libraries base lwt cmdliner lambda-term ace dream cohttp-lwt-unix)
- )
+ (libraries base lwt cmdliner lambda-term ace dream cohttp-lwt-unix))

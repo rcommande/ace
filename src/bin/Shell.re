@@ -254,10 +254,25 @@ let run_shell = config => {
   );
 };
 
+let print_welcome = (config: Config.t) => {
+  open Stdio.Out_channel;
+  let welcome_message =
+    Ace_externals.(
+      Ministel.(
+        <Terminal>
+          <Line> {"Welcome to the ace shell " ++ config.version} </Line>
+        </Terminal>
+      )
+    );
+  output_string(stdout, welcome_message);
+  flush(stdout);
+};
+
 let run = () => {
   let _ =
     switch (ConfigParser.read_config_file_sync("config.yaml")) {
     | Ok(config) =>
+      print_welcome(config);
       let _ = run_shell(config) |> Lwt_main.run;
       ();
     | Error(msg) =>

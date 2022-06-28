@@ -1,6 +1,6 @@
 open Base;
 open Cohttp_lwt_unix;
-open Core.Types;
+open Ace_core.Types;
 open Lwt;
 open Yojson.Basic;
 open Yojson;

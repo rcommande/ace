@@ -1,1 +1,2 @@
-module Ministel = Ace_external_ministel.Ministel;
+module Slack = Ace_externals_slack;
+module Ministel = Ace_externals_ministel;

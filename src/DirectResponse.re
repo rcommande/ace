@@ -1,5 +1,5 @@
 open Base;
-open Core.Types;
+open Ace_core.Types;
 
 let ping_responses = [|"pong 🏓", "pong", "🏓"|];
 

@@ -1,0 +1,4 @@
+(library
+  (name Ace_externals_slack)
+  (public_name ace.externals.slack)
+  (libraries yojson base ace.externals.slack.blocks))
