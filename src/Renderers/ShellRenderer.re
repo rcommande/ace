@@ -7,7 +7,7 @@ module InteractionItem = {
     Ministel.(
       <Terminal>
         <Text color> {key ++ ": "} </Text>
-        <Text color=white> value </Text>
+        <Text color=White> value </Text>
       </Terminal>
     );
   };
@@ -17,7 +17,7 @@ module ResponseItem = {
   let createElement = (~botname, ~value, ~color, ~children=[], ()) => {
     Ministel.(
       <Terminal>
-        <Line> <Text color=blue> {botname ++ " > " ++ value} </Text> </Line>
+        <Line> <Text color=Blue> {botname ++ " > " ++ value} </Text> </Line>
       </Terminal>
     );
   };
@@ -83,10 +83,10 @@ let render_interaction = (config: Config.t, interaction: Interaction.t, color) =
 };
 
 let render_text = (config, interaction) =>
-  render_interaction(config, interaction, green);
+  render_interaction(config, interaction, Ministel.Green);
 
 let render_error = (config, interaction) =>
-  render_interaction(config, interaction, red);
+  render_interaction(config, interaction, Ministel.Red);
 
 let render_ok = (config, interaction) =>
-  render_interaction(config, interaction, green);
+  render_interaction(config, interaction, Ministel.Green);

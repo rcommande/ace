@@ -260,7 +260,16 @@ let print_welcome = (config: Config.t) => {
     Ace_externals.(
       Ministel.(
         <Terminal>
-          <Line> {"Welcome to the ace shell " ++ config.version} </Line>
+          <Line>
+            <Text> "Welcome to the " </Text>
+            <Text color=Red> "ace shell " </Text>
+            <Text color=Green> {"v" ++ config.version} </Text>
+          </Line>
+          <Line>
+            "Started bot : "
+            <Text color=White> {config.bot.name} </Text>
+          </Line>
+          <Br />
         </Terminal>
       )
     );
