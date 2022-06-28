@@ -1,0 +1,4 @@
+(library
+  (name Ace_externals)
+  (public_name ace.externals)
+  (libraries ace.externals.ministel))

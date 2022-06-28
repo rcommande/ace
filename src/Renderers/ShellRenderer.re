@@ -1,69 +1,85 @@
 open Core.Types;
 open ANSITerminal;
+open Ace_externals;
 
 module InteractionItem = {
   let createElement = (~key, ~value, ~color, ~children=[], ()) => {
-    <Ministel>
-      <Ministel color> {key ++ ": "} </Ministel>
-      <Ministel color=white> value </Ministel>
-    </Ministel>;
+    Ministel.(
+      <Terminal>
+        <Text color> {key ++ ": "} </Text>
+        <Text color=white> value </Text>
+      </Terminal>
+    );
   };
 };
 
 module ResponseItem = {
   let createElement = (~botname, ~value, ~color, ~children=[], ()) => {
-    <Ministel>
-      <Ministel color=blue> {"\n" ++ botname ++ " > " ++ value} </Ministel>
-    </Ministel>;
+    Ministel.(
+      <Terminal>
+        <Line> <Text color=blue> {botname ++ " > " ++ value} </Text> </Line>
+      </Terminal>
+    );
   };
 };
 
 let render_interaction = (config: Config.t, interaction: Interaction.t, color) => {
   let (incoming, outgoing) = interaction;
-  <Ministel>
-    <InteractionItem
-      key="INPUT"
-      value={"\"" ++ Input.to_string(incoming.input) ++ "\""}
-      color
-    />
-    "\r\n"
-    <InteractionItem
-      key="ORIGIN"
-      value={Service.to_string(incoming.origin)}
-      color
-    />
-    "\r\n"
-    <InteractionItem
-      key="DESTINATION"
-      value={Service.to_string(incoming.destination)}
-      color
-    />
-    "\r\n"
-    <InteractionItem
-      key="ACTION"
-      value={Action.to_string(outgoing.action)}
-      color
-    />
-    "\r\n"
-    <InteractionItem
-      key="RUNNER"
-      value={Action.Runner.to_string(outgoing.action.runner)}
-      color
-    />
-    "\r\n"
-    <InteractionItem
-      key="EVENT"
-      value={Event.to_string(outgoing.event)}
-      color
-    />
-    "\r\n"
-    <ResponseItem
-      botname={config.bot.name}
-      value={Response.to_string(outgoing.response)}
-      color
-    />
-    "\r\n"
-  </Ministel>;
+
+  Ministel.(
+    <Terminal>
+      <Line>
+        <InteractionItem
+          key="INPUT"
+          value={"\"" ++ Input.to_string(incoming.input) ++ "\""}
+          color
+        />
+      </Line>
+      <Line>
+        <InteractionItem
+          key="ORIGIN"
+          value={Service.to_string(incoming.origin)}
+          color
+        />
+      </Line>
+      <Line>
+        <InteractionItem
+          key="DESTINATION"
+          value={Service.to_string(incoming.destination)}
+          color
+        />
+      </Line>
+      <Line>
+        <InteractionItem
+          key="ACTION"
+          value={Action.to_string(outgoing.action)}
+          color
+        />
+      </Line>
+      <Line>
+        <InteractionItem
+          key="RUNNER"
+          value={Action.Runner.to_string(outgoing.action.runner)}
+          color
+        />
+      </Line>
+      <Line>
+        <InteractionItem
+          key="EVENT"
+          value={Event.to_string(outgoing.event)}
+          color
+        />
+      </Line>
+      <Br />
+      <Line>
+        <ResponseItem
+          botname={config.bot.name}
+          value={Response.to_string(outgoing.response)}
+          color
+        />
+      </Line>
+    </Terminal>
+  );
 };
 
 let render_text = (config, interaction) =>
