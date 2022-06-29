@@ -262,12 +262,12 @@ let print_welcome = (config: Config.t) => {
         <Terminal>
           <Line>
             <Text> "Welcome to the " </Text>
-            <Text color=Red> "ace shell " </Text>
-            <Text color=Green> {"v" ++ config.version} </Text>
+            <Text color=Green> "ace shell " </Text>
+            <Text color=Red> {"(v" ++ config.version ++ ")"} </Text>
           </Line>
           <Line>
             "Started bot : "
-            <Text color=White> {config.bot.name} </Text>
+            <Text color=Yellow> {config.bot.name} </Text>
           </Line>
           <Br />
         </Terminal>
