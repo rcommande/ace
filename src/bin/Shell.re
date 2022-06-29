@@ -234,26 +234,6 @@ let rec loop =
   );
 };
 
-let run_shell = config => {
-  let binaries = get_binaries(config, shell_commands);
-  LTerm_inputrc.load()
-  >>= (
-    () =>
-      Lazy.force(LTerm.stdout)
-      >>= (
-        term =>
-          loop(
-            ~binaries,
-            ~term,
-            ~history=LTerm_history.create([]),
-            ~exit_code=0,
-            ~config,
-            (),
-          )
-      )
-  );
-};
-
 let print_welcome = (config: Config.t) => {
   open Stdio.Out_channel;
   let welcome_message =
@@ -265,10 +245,6 @@ let print_welcome = (config: Config.t) => {
             <Text color=Green> "ace shell " </Text>
             <Text color=Red> {"(v" ++ config.version ++ ")"} </Text>
           </Line>
-          <Line>
-            "Started bot : "
-            <Text color=Yellow> {config.bot.name} </Text>
-          </Line>
           <Br />
         </Terminal>
       )
@@ -277,19 +253,80 @@ let print_welcome = (config: Config.t) => {
   flush(stdout);
 };
 
-let run = () => {
-  let _ =
-    switch (ConfigParser.read_config_file_sync("config.yaml")) {
-    | Ok(config) =>
-      print_welcome(config);
-      let _ = run_shell(config) |> Lwt_main.run;
-      ();
-    | Error(msg) =>
-      let _ =
-        Lwt_io.(
-          write_line(stdout, "Unable to read the config file : " ++ msg)
-        );
-      ();
-    };
+let start_shell = config => {
+  print_welcome(config);
+  let binaries = get_binaries(config, shell_commands);
+  let shell =
+    LTerm_inputrc.load()
+    >>= (
+      _ =>
+        Lazy.force(LTerm.stdout)
+        >>= (
+          term =>
+            loop(
+              ~binaries,
+              ~term,
+              ~history=LTerm_history.create([]),
+              ~exit_code=0,
+              ~config,
+              (),
+            )
+        )
+    );
+
+  let _ = Lwt_main.run(shell);
   ();
+};
+
+let output_string_sync = (~do_flush=false, msg) => {
+  open Stdio.Out_channel;
+  output_string(stdout, msg);
+  if (do_flush) {
+    flush(stdout);
+  } else {
+    ();
+  };
+};
+
+let run = () => {
+  output_string_sync(
+    Ace_externals.Ministel.(
+      <Terminal>
+        <Line>
+          <Text color=Green> "==> " </Text>
+          <Text color=White> "Start Ace shell: " </Text>
+          <Text color=Yellow> "OK" </Text>
+        </Line>
+      </Terminal>
+    ),
+  );
+  output_string_sync(
+    Ace_externals.Ministel.(
+      <Terminal>
+        <Line>
+          <Text color=Green> "==> " </Text>
+          <Text color=White> "Load configuration: " </Text>
+          <Text color=Yellow> "config.yaml" </Text>
+        </Line>
+      </Terminal>
+    ),
+  );
+  switch (ConfigParser.read_config_file_sync("config.yaml")) {
+  | Ok(config) =>
+    output_string_sync(
+      Ace_externals.Ministel.(
+        <Terminal>
+          <Line>
+            <Text color=Green> "==> " </Text>
+            <Text color=White> "Started bot : " </Text>
+            <Text color=Yellow> {config.bot.name} </Text>
+            <Br />
+          </Line>
+        </Terminal>
+      ),
+    );
+    start_shell(config);
+  | Error(msg) =>
+    output_string_sync("Unable to read the config file : " ++ msg)
+  };
 };
