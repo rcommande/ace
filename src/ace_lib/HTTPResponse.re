@@ -1,9 +1,9 @@
 open Base;
 open Cohttp_lwt_unix;
-open Ace_core.Types;
 open Lwt;
 open Yojson.Basic;
 open Yojson;
+open Types;
 
 type action_result =
   | ResultOK(string, string)

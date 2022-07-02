@@ -1,5 +1,0 @@
-(library
- (name Ace_Renderers)
- (public_name ace.renderers)
- (libraries lwt.unix yojson ANSITerminal ace.core ace.externals))
-

@@ -1,6 +1,5 @@
 open Base;
-open Ace_core.Types;
-open Ace_core;
+open Types;
 open Lwt;
 open Yaml;
 

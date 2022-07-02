@@ -1,5 +1,4 @@
-open Ace;
-open Ace.Core;
+open Ace_lib;
 open Base;
 open Cohttp;
 open Cohttp_lwt_unix;
@@ -69,7 +68,7 @@ let execute_command = (body, config: Types.Config.t) => {
       interaction_res => {
         switch (interaction_res) {
         | Ok(interaction) =>
-          let body = Ace_Renderers.SlackRenderer.render(config, interaction);
+          let body = Renderers.SlackRenderer.render(config, interaction);
           let _ = send_response(body, slack_command.response_url);
           Lwt_result.return(body);
         | Error(msg) => Lwt_result.fail(CommandExecutionError(msg))

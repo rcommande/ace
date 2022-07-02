@@ -1,6 +1,6 @@
 open Base;
-open Ace_core.Types;
-open Ace_core.Types.Action;
+open Types;
+open Types.Action;
 open Lwt;
 open Re2;
 

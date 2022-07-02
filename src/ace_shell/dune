@@ -1,0 +1,4 @@
+(library
+  (name Ace_shell)
+  (public_name ace.shell)
+  (libraries lambda-term ace.lib))

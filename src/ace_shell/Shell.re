@@ -1,14 +1,8 @@
-open Ace;
-open Ace_Renderers;
+open Ace_lib.Types;
+open Ace_lib;
 open Base;
 open Cohttp;
-open Core.Types.Action;
-open Core.Types.Http;
-open Core.Types.Service;
-open Core.Types;
-open Core;
 open Lwt;
-open Processor;
 open React;
 open Stdio;
 
@@ -17,7 +11,8 @@ let shell_commands = [|"exit", "quit", "clear"|];
 let handle_result = (config, interaction_res) => {
   let io_writer = Lwt_io.write_line(Lwt_io.stdout);
   switch (interaction_res) {
-  | Ok(interaction) => io_writer @@ ShellRenderer.render(config, interaction)
+  | Ok(interaction) =>
+    io_writer @@ Ace_lib.Renderers.(ShellRenderer.render(config, interaction))
   | Error(error) => io_writer(error)
   };
 };
@@ -237,7 +232,7 @@ let rec loop =
 let print_welcome = (config: Config.t) => {
   open Stdio.Out_channel;
   let welcome_message =
-    Ace_externals.(
+    Externals.(
       Ministel.(
         <Terminal>
           <Line>
@@ -290,7 +285,7 @@ let output_string_sync = (~do_flush=false, msg) => {
 
 let run = () => {
   output_string_sync(
-    Ace_externals.Ministel.(
+    Externals.Ministel.(
       <Terminal>
         <Line>
           <Text color=Green> "==> " </Text>
@@ -301,7 +296,7 @@ let run = () => {
     ),
   );
   output_string_sync(
-    Ace_externals.Ministel.(
+    Externals.Ministel.(
       <Terminal>
         <Line>
           <Text color=Green> "==> " </Text>
@@ -314,7 +309,7 @@ let run = () => {
   switch (ConfigParser.read_config_file_sync("config.yaml")) {
   | Ok(config) =>
     output_string_sync(
-      Ace_externals.Ministel.(
+      Externals.Ministel.(
         <Terminal>
           <Line>
             <Text color=Green> "==> " </Text>

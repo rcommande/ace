@@ -1,0 +1,6 @@
+(include_subdirs unqualified)
+
+(library
+  (name Ace_lib)
+  (public_name ace.lib)
+  (libraries base cohttp-lwt-unix re2 yaml ace.externals))

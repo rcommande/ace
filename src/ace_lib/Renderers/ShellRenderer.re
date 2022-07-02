@@ -1,6 +1,6 @@
-open Ace_core.Types;
+open Types;
 open ANSITerminal;
-open Ace_externals;
+open Externals;
 
 module InteractionItem = {
   let createElement = (~key, ~value, ~color, ~children=[], ()) => {

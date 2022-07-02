@@ -1,4 +1,0 @@
-(executable
- (name Cli)
- (public_name ace)
- (libraries base lwt cmdliner lambda-term ace dream cohttp-lwt-unix))

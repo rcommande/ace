@@ -1,11 +1,3 @@
-/* module Response = Response; */
-/* module LayoutBlock = LayoutBlock; */
-/* module CompositionObject = CompositionObject; */
-/* module BlockElement = BlockElement; */
-
-/* response = Jsx.response; */
-/* text = Jsx.Text; */
-/* attachment */
 open Base;
 
 let section =

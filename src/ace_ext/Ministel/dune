@@ -1,4 +1,4 @@
 (library
-  (name Ace_externals_ministel)
+  (name Ministel)
   (public_name ace.externals.ministel)
   (libraries base ANSITerminal))
